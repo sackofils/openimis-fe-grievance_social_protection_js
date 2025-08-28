@@ -319,6 +319,25 @@ class AddTicketPage extends Component {
                 </Grid>
                 <Grid item xs={6} className={classes.item}>
                   <PublishedComponent
+                    pubRef="grievanceSocialProtection.DropDownSubCategoryPicker"
+                    category={stateEdited.category}
+                    value={stateEdited.subCategory}
+                    onChange={(v) => this.updateAttribute('subCategory', v)}
+                    required
+                    readOnly={isSaved}
+                  />
+                </Grid>
+                <Grid item xs={6} className={classes.item}>
+                  <PublishedComponent
+                    pubRef="grievanceSocialProtection.DropDownSubCategoryLevel1Picker"
+                    subCategory={stateEdited.subCategory}
+                    value={stateEdited.subCategoryLevel1}
+                    onChange={(v) => this.updateAttribute('subCategoryLevel1', v)}
+                    readOnly={isSaved}
+                  />
+                </Grid>
+                <Grid item xs={6} className={classes.item}>
+                  <PublishedComponent
                     pubRef="grievanceSocialProtection.FlagPicker"
                     value={stateEdited.flags}
                     onChange={(v) => this.updateAttribute('flags', v)}

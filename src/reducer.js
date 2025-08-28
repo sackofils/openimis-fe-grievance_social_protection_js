@@ -16,6 +16,7 @@ export const ACTION_TYPE = {
   RESOLVE_BY_COMMENT: 'RESOLVE_BY_COMMENT',
   REOPEN_TICKET: 'REOPEN_TICKET',
   CLEAR_TICKET: 'CLEAR_TICKET',
+  ESCALATE_TICKET: 'ESCALATE_TICKET',
 };
 
 function reducer(
@@ -243,6 +244,9 @@ function reducer(
       return dispatchMutationResp(state, 'resolveGrievanceByComment', action);
     case SUCCESS(ACTION_TYPE.REOPEN_TICKET):
       return dispatchMutationResp(state, 'reopenTicket', action);
+    case SUCCESS(ACTION_TYPE.ESCALATE_TICKET):
+      return dispatchMutationResp(state, 'escalateTicket', action);
+
     case 'TICKET_MUTATION_REQ':
       return dispatchMutationReq(state, action);
     case 'TICKET_MUTATION_ERR':

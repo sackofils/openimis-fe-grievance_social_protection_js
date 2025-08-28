@@ -13,6 +13,8 @@ import TicketSearcher from './components/TicketSearcher';
 import TicketPriorityPicker from './pickers/TicketPriorityPicker';
 import TicketStatusPicker from './pickers/TicketStatusPicker';
 import CategoryPicker from './pickers/CategoryPicker';
+import SubCategoryPicker from './pickers/SubCategoryPicker';
+import SubCategoryLevel1Picker from './pickers/SubCategoryLevel1Picker';
 import GrievanceConfigurationDialog from './dialogs/GrievanceConfigurationDialog';
 import ChannelPicker from './pickers/ChannelPicker';
 import FlagPicker from './pickers/FlagsPicker';
@@ -39,7 +41,11 @@ const DEFAULT_CONFIG = {
     { key: 'grievanceSocialProtection.TicketStatusPicker', ref: TicketStatusPicker },
     { key: 'grievanceSocialProtection.TicketPriorityPicker', ref: TicketPriorityPicker },
     { key: 'grievanceSocialProtection.DropDownCategoryPicker', ref: CategoryPicker },
+    { key: 'grievanceSocialProtection.DropDownSubCategoryPicker', ref: SubCategoryPicker },
+    { key: 'grievanceSocialProtection.DropDownSubCategoryLevel1Picker', ref: SubCategoryLevel1Picker },
     { key: 'grievanceSocialProtection.CategoryPicker', ref: CategoryPicker },
+    { key: 'grievanceSocialProtection.SubCategoryPicker', ref: SubCategoryPicker },
+    { key: 'grievanceSocialProtection.SubCategoryLevel1Picker', ref: SubCategoryLevel1Picker },
     { key: 'grievanceSocialProtection.FlagPicker', ref: FlagPicker },
     { key: 'grievanceSocialProtection.ChannelPicker', ref: ChannelPicker },
     { key: 'grievanceSocialProtection.GrievanceConfigurationDialog', ref: GrievanceConfigurationDialog },

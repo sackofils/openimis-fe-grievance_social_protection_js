@@ -49,7 +49,7 @@ function GrievanceCommentDialog({
           marginTop: '6px',
         }}
       >
-        Add Comment to a Grievance
+       Ajouter un commentaire à la réclamation
       </Button>
       <Dialog
         open={openCommentModal}
@@ -68,7 +68,7 @@ function GrievanceCommentDialog({
               marginTop: '10px',
             }}
           >
-            Add Comment to a Grievance
+            Ajouter un commentaire à la réclamation
           </DialogTitle>
           <DialogContent>
             <div
@@ -161,7 +161,7 @@ function GrievanceCommentDialog({
                     marginBottom: '15px',
                   }}
                 >
-                  Close
+                  Annuler
                 </Button>
               </div>
               <div style={{ float: 'right', paddingRight: '16px' }}>
@@ -175,7 +175,7 @@ function GrievanceCommentDialog({
                     )
                   }
                 >
-                  Save
+                  Enregistrer
                 </Button>
               </div>
             </div>

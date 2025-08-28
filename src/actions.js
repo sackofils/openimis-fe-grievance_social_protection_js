@@ -13,6 +13,8 @@ import {
 
 const GRIEVANCE_CONFIGURATION_PROJECTION = () => [
   'grievanceTypes',
+  'grievanceCategories{type, categories}',
+  'grievanceSubCategories{category, subCategories}',
   'grievanceFlags',
   'grievanceChannels',
   'grievanceDefaultResolutionsByCategory{category, resolutionTime}',
@@ -37,7 +39,7 @@ export function fetchTicketSummaries(mm, filters) {
     'id', 'title', 'code', 'description', 'status',
     'priority', 'dueDate', 'reporter', 'reporterId',
     'reporterType', 'reporterTypeName', 'category', 'flags',
-    'channel', 'resolution', 'title', 'dateOfIncident', 'dateCreated', 'version', 'isHistory',
+    'channel', 'resolution', 'dateOfIncident', 'dateCreated', 'version', 'isHistory',
     'reporterFirstName', 'reporterLastName', 'reporterDob',
   ];
   const payload = formatPageQueryWithCount(
@@ -55,7 +57,8 @@ export function fetchTicket(mm, filters) {
     'reporterType', 'reporterTypeName', 'category', 'flags', 'channel',
     'resolution', 'title', 'dateOfIncident', 'dateCreated',
     'attendingStaff {id, username}', 'version', 'isHistory,', 'jsonExt',
-    'reporterFirstName', 'reporterLastName', 'reporterDob',
+    'reporterFirstName', 'reporterLastName', 'reporterDob', 'subCategory',
+    'subCategoryLevel1'
   ];
   const payload = formatPageQueryWithCount(
     'tickets',
@@ -99,6 +102,8 @@ export function formatTicketGQL(ticket) {
     ${ticket.id !== undefined && ticket.id !== null ? `id: "${ticket.id}"` : ''}
     ${ticket.code ? `code: "${formatGQLString(ticket.code)}"` : ''}
     ${!!ticket.category && !!ticket.category ? `category: "${ticket.category}"` : ''}
+    ${!!ticket.subCategory && !!ticket.subCategory ? `subCategory: "${ticket.subCategory}"` : ''}
+    ${!!ticket.subCategoryLevel1 && !!ticket.subCategoryLevel1 ? `subCategoryLevel1: "${ticket.subCategoryLevel1}"` : ''}
     ${!!ticket.title && !!ticket.title ? `title: "${ticket.title}"` : ''}
     ${!!ticket.attendingStaff && !!ticket.attendingStaff ? `attendingStaffId: "${decodeId(ticket.attendingStaff.id)}"` : ''}
     ${!!ticket.description && !!ticket.description ? `description: "${ticket.description}"` : ''}
@@ -126,6 +131,8 @@ export function formatUpdateTicketGQL(ticket) {
   return `
     ${ticket.id !== undefined && ticket.id !== null ? `id: "${ticket.id}"` : ''}
     ${!!ticket.category && !!ticket.category ? `category: "${ticket.category}"` : ''}
+    ${!!ticket.subCategory && !!ticket.subCategory ? `subCategory: "${ticket.subCategory}"` : ''}
+    ${!!ticket.subCategoryLevel1 && !!ticket.subCategoryLevel1 ? `subCategoryLevel1: "${ticket.subCategoryLevel1}"` : ''}
     ${!!ticket.title && !!ticket.title ? `title: "${ticket.title}"` : ''}
     ${!!ticket.description && !!ticket.description ? `description: "${ticket.description}"` : ''}
     ${!!ticket.attendingStaff && !!ticket.attendingStaff ? `attendingStaffId: "${decodeId(ticket.attendingStaff.id)}"` : ''}
@@ -310,6 +317,25 @@ export function reopenTicket(id, clientMutationLabel) {
       clientMutationLabel,
       requestedDateTime,
 
+    },
+  );
+}
+
+export function escalateTicket(id, clientMutationLabel = 'escalate ticket') {
+  const mutation = formatMutation(
+    'escalateTicket',
+    `id: "${id}"`,
+    clientMutationLabel,
+  );
+  const requestedDateTime = new Date();
+  return graphql(
+    mutation.payload,
+    [REQUEST(ACTION_TYPE.MUTATION), SUCCESS(ACTION_TYPE.ESCALATE_TICKET), ERROR(ACTION_TYPE.MUTATION)],
+    {
+      clientMutationId: mutation.clientMutationId,
+      clientMutationLabel,
+      requestedDateTime,
+      id,
     },
   );
 }

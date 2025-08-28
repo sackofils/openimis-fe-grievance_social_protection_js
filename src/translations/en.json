@@ -41,8 +41,12 @@
     "ticket.ticketPriority.Normal" : "Normal",
     "ticket.ticketPriority.Low" : "Low",
     "CategoryPicker.label" : "Category",
+    "SubCategoryPicker.label" : "Sub-Category",
+    "SubCategoryLevel1Picker.label" : "Sub-Typology",
     " Ticket.DescriptionOfEvents" : "DETAILS OF EVENT LEADING TO GRIEVANCE (Provide a detailed account of the occurrence)",
     "CategoryPicker.placeholder": "Category",
+    "SubCategoryPicker.placeholder": "Sub-Category",
+    "SubCategoryLevel1Picker.placeholder": "Sub-Typology",
     "FlagPicker.label" : "Flag",
     "FlagPicker.placeholder" : "Flag",
     "ChannelPicker.label" : "Channel",
@@ -137,5 +141,8 @@
     "ticket.template.attendingStaff": "Attending Staff",
     "ticket.template.description": "Description",
     "ticket.template.comments": "Comments",
-    "ticket.template.noComments": "No Comments yet"
+    "ticket.template.noComments": "No Comments yet",
+    "ticket.assignedRole": "assignee role",
+    "ticket.escalationLevel": "escalation level",
+    "ticket.lastEscalateAt": "Last escalate at"
 }
