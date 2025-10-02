@@ -282,7 +282,7 @@ class EditTicketPage extends Component {
                 <TextField
                   fullWidth
                   size="small"
-                  label="ticket.assignedRole"
+                  label="Rôle assigné"
                   value={wf.assignee_role || ''}
                   InputProps={{ readOnly: true }}
                 />
@@ -291,7 +291,7 @@ class EditTicketPage extends Component {
                 <TextField
                   fullWidth
                   size="small"
-                  label="ticket.escalationLevel"
+                  label="Niveau d’escalade"
                   value={wf.escalation_level ?? ''}
                   InputProps={{ readOnly: true }}
                 />
@@ -300,7 +300,7 @@ class EditTicketPage extends Component {
                 <TextField
                   fullWidth
                   size="small"
-                  label="ticket.lastEscalateAt"
+                  label="Dernière escalade"
                   value={this.fmtDateTime(wf.last_escalated_at)}
                   InputProps={{ readOnly: true }}
                 />
