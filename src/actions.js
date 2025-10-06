@@ -18,6 +18,7 @@ const GRIEVANCE_CONFIGURATION_PROJECTION = () => [
   'grievanceFlags',
   'grievanceChannels',
   'grievanceDefaultResolutionsByCategory{category, resolutionTime}',
+  'koboTicketFormUrl'
 ];
 
 const CATEGORY_FULL_PROJECTION = () => [

@@ -198,7 +198,27 @@ class TicketSearcher extends Component {
         return picker;
       },
       (ticket) => ticket.priority,
-      (ticket) => ticket.status,
+      (ticket) => {
+          const translated = formatMessage(this.props.intl, MODULE_NAME, `status.${ticket.status}`, null, ticket.status);
+          const colors = {
+            OPEN: '#1976d2',
+            IN_PROGRESS: '#f9a825',
+            RESOLVED: '#388e3c',
+            CLOSED: '#616161',
+            REJECTED: '#d32f2f',
+          };
+          return (
+            <span style={{
+              color: '#fff',
+              backgroundColor: colors[ticket.status] || '#999',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              fontSize: '0.8rem',
+            }}>
+              {translated}
+            </span>
+          );
+      },
       (ticket) => ticket.category,
       (ticket) => (this.isShowHistory() ? ticket?.version : null),
     ];
