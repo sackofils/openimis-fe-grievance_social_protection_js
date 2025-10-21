@@ -197,7 +197,25 @@ class TicketSearcher extends Component {
         }
         return picker;
       },
-      (ticket) => ticket.priority,
+      (ticket) => {
+          const translated = formatMessage(this.props.intl, MODULE_NAME, `priority.${ticket.priority}`, null, ticket.priority);
+          const colors = {
+            Low: '#1976d2',
+            Normal: '#999',
+            High: '#f9a825',
+            Critical: '#616161'
+          };
+          return (
+            <span style={{
+              color: colors[ticket.priority] || '#999',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              fontSize: '0.8rem',
+            }}>
+              {translated}
+            </span>
+          );
+      },
       (ticket) => {
           const translated = formatMessage(this.props.intl, MODULE_NAME, `status.${ticket.status}`, null, ticket.status);
           const colors = {

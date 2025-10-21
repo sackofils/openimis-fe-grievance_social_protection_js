@@ -3,7 +3,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/destructuring-assignment */
 import React, { Component } from 'react';
-import { withTheme, withStyles } from '@material-ui/core/styles';
+import { withTheme, withStyles, FormControlLabel, Checkbox } from '@material-ui/core/styles';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import {
@@ -11,7 +11,7 @@ import {
 } from '@material-ui/core';
 import { Save } from '@material-ui/icons';
 import {
-  TextInput, journalize, PublishedComponent, FormattedMessage,
+  TextInput, journalize, PublishedComponent, FormattedMessage
 } from '@openimis/fe-core';
 import { createTicket } from '../actions';
 import { EMPTY_STRING, MODULE_NAME } from '../constants';
@@ -25,6 +25,7 @@ const styles = (theme) => ({
     height: '100%',
   },
 });
+
 
 class AddTicketPage extends Component {
   constructor(props) {
@@ -368,7 +369,10 @@ class AddTicketPage extends Component {
                     pubRef="admin.UserPicker"
                     value={stateEdited.attendingStaff}
                     module="core"
-                    onChange={(v) => this.updateAttribute('attendingStaff', v)}
+                    onChange={(v) => {
+                        console.log('attendingStaff', v);
+                        this.updateAttribute('attendingStaff', v)
+                    }}
                     readOnly={isSaved}
                   />
                 </Grid>
@@ -379,6 +383,23 @@ class AddTicketPage extends Component {
                     onChange={(v) => this.updateAttribute('description', v)}
                     required={false}
                     readOnly={isSaved}
+                  />
+                </Grid>
+                <Divider />
+                {/* === Localisation === */}
+                <Divider style={{ marginTop: 10, marginBottom: 10 }} />
+                <Grid item xs={12} className={classes.item}>
+                  <Typography variant="subtitle1" style={{ marginBottom: 8 }}>
+                    Localisation
+                  </Typography>
+                  <PublishedComponent
+                    pubRef="location.DetailedLocation"
+                    withNull
+                    required
+                    readOnly={isSaved}
+                    filterLabels={false}
+                    value={stateEdited?.location}
+                    onChange={(locations) => this.updateAttribute('location', locations)}
                   />
                 </Grid>
                 <Grid item xs={11} className={classes.item} />

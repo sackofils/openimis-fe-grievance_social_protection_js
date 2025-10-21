@@ -42,6 +42,7 @@ export function fetchTicketSummaries(mm, filters) {
     'reporterType', 'reporterTypeName', 'category', 'flags',
     'channel', 'resolution', 'dateOfIncident', 'dateCreated', 'version', 'isHistory',
     'reporterFirstName', 'reporterLastName', 'reporterDob',
+    `location ${mm.getProjection('location.Location.FlatProjection')}`,
   ];
   const payload = formatPageQueryWithCount(
     'tickets',
@@ -59,8 +60,9 @@ export function fetchTicket(mm, filters) {
     'resolution', 'title', 'dateOfIncident', 'dateCreated',
     'attendingStaff {id, username}', 'version', 'isHistory,', 'jsonExt',
     'reporterFirstName', 'reporterLastName', 'reporterDob', 'subCategory',
-    'subCategoryLevel1'
+    'subCategoryLevel1', `location ${mm.getProjection('location.Location.FlatProjection')}`,
   ];
+
   const payload = formatPageQueryWithCount(
     'tickets',
     filters,
@@ -114,6 +116,7 @@ export function formatTicketGQL(ticket) {
       : `reporterId: "${ticket.reporter.id}"`)
     : ''}
     ${!!ticket.reporterType && !!ticket.reporterType ? `reporterType: "${ticket.reporterType}"` : ''}
+    ${!!ticket.location && !!ticket.location ? `locationId: ${decodeId(ticket.location.id)}` : ''}
     ${ticket.nameOfComplainant ? `nameOfComplainant: "${formatGQLString(ticket.nameOfComplainant)}"` : ''}
     ${ticket.resolution ? `resolution: "${formatGQLString(ticket.resolution)}"` : ''}
     ${ticket.status ? `status: "${formatGQLString(ticket.status)}"` : ''}
@@ -142,6 +145,7 @@ export function formatUpdateTicketGQL(ticket) {
       ? `reporterId: "${decodeId(ticket.reporter.id)}"`
       : `reporterId: "${ticket.reporter.id}"`)
     : ''}
+    ${!!ticket.location && !!ticket.location ? `locationId: ${decodeId(ticket.location.id)}` : ''}
     ${!!ticket.reporter && !!ticket.reporter ? `reporterType: "${ticket.reporterTypeName}"` : ''}
     ${ticket.nameOfComplainant ? `nameOfComplainant: "${formatGQLString(ticket.nameOfComplainant)}"` : ''}
     ${ticket.resolution ? `resolution: "${formatGQLString(ticket.resolution)}"` : ''}

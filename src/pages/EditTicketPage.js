@@ -167,6 +167,21 @@ class EditTicketPage extends Component {
     return out;
   };
 
+  filterSensitiveJsonFields = (fields, isSensitive) => {
+    if (!isSensitive) return fields;
+    const sensitiveKeys = [
+      "complainant_firstname",
+      "complainant_lastname",
+      "telephonePrenomReclamantExterne",
+      "complainant_phone",
+      "complainant_email",
+      "cgp_contact_confirmation",
+      "cgp_nom_confirmation",
+    ];
+    return fields.filter(f => !sensitiveKeys.some(k => f.path.includes(k)));
+  };
+
+
   getJSONExtWithoutWorkflow = (ticket) => {
     const raw = ticket?.jsonExt ?? ticket?.json_ext ?? {};
     const parsed = this.parseJsonSafe(raw) || {};
@@ -337,7 +352,7 @@ class EditTicketPage extends Component {
                           <TableCell>{h.to_role ?? ''}</TableCell>
                           <TableCell align="right">{h.sla_days ?? ''}</TableCell>
                           <TableCell align="right">
-                            {h.to_user_id === null || h.to_user_id === undefined ? '' : String(h.to_user_id)}
+                            {h.to_user_fullname === null || h.to_user_fullname === undefined ? '' : String(h.to_user_fullname)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -367,14 +382,19 @@ class EditTicketPage extends Component {
       stateEdited, reporter, comments, jsonFields, showEscalateDialog, escalating,
     } = this.state;
 
+    const isSensitive = stateEdited?.category === "Cas sensibles";
+    const filteredJsonFields = this.filterSensitiveJsonFields(jsonFields, isSensitive);
+
     const escalateDisabled = propsReadOnly || !stateEdited?.id
       || ['RESOLVED', 'CLOSED'].includes(stateEdited?.status);
+
+    console.log('stateEdited.district', stateEdited);
 
     return (
       <div className={classes.page}>
         <Grid container>
           <Grid item xs={12}>
-            {stateEdited?.reporter && (
+            {!isSensitive && stateEdited?.reporter && (
             <Paper className={classes.paper}>
               <Grid container className={classes.tableTitle}>
                 <Grid item xs={8} className={classes.tableTitle}>
@@ -616,6 +636,23 @@ class EditTicketPage extends Component {
                 </Grid>
               </Grid>
 
+              {/* === Localisation === */}
+              <Divider style={{ marginTop: 10, marginBottom: 10 }} />
+              <Grid item xs={12} className={classes.item}>
+                <Typography variant="subtitle1" style={{ marginBottom: 8 }}>
+                    Localisation
+                </Typography>
+                <PublishedComponent
+                    pubRef="location.DetailedLocation"
+                    withNull
+                    required
+                    readOnly={propsReadOnly}
+                    filterLabels={false}
+                    value={stateEdited?.location}
+                    onChange={(locations) => this.updateAttribute('location', locations)}
+                />
+              </Grid>
+
               {/* ----- json_ext : chaque élément = 1 champ, lecture seule ----- */}
               <Divider />
               <Grid container className={classes.item}>
@@ -624,7 +661,7 @@ class EditTicketPage extends Component {
                     Données supplémentaires (json_ext)
                   </Typography>
                 </Grid>
-                {jsonFields.map((f, idx) => (
+                {filteredJsonFields.map((f, idx) => (
                   <Grid item xs={6} className={classes.item} key={`jsonext-field-${idx}`}>
                     <TextField
                       fullWidth
