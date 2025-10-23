@@ -34,7 +34,7 @@ function SubCategoryLevel1Picker(props) {
     <Autocomplete
       multiple={multiple}
       required={required}
-      placeholder={placeholder ?? formatMessage('SubCategoryLevelPicker.placeholder')}
+      placeholder={placeholder ?? formatMessage('SubCategoryLevel1Picker.placeholder')}
       label={label ?? formatMessage('SubCategoryLevel1Picker.label')}
       error={error}
       withLabel={withLabel}

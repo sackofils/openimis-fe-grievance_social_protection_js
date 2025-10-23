@@ -268,7 +268,8 @@ class EditTicketPage extends Component {
       // rechargement du ticket courant
       await refetch(null, [`id: "${stateEdited.id}"`]);
     } finally {
-      this.setState({ escalating: false, showEscalateDialog: false });
+      window.location.reload();
+      // this.setState({ escalating: false, showEscalateDialog: false });
     }
   };
 
@@ -339,7 +340,7 @@ class EditTicketPage extends Component {
                         <TableCell>Par</TableCell>
                         <TableCell>Source</TableCell>
                         <TableCell>Vers rôle</TableCell>
-                        <TableCell align="right">SLA (j)</TableCell>
+                        <TableCell align="right">Délai (j)</TableCell>
                         <TableCell align="right">Utilisateur cible (ID)</TableCell>
                       </TableRow>
                     </TableHead>
