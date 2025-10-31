@@ -3,16 +3,38 @@
 /* eslint-disable class-methods-use-this */
 /* eslint-disable react/no-did-update-set-state */
 import React, { Component, Fragment } from 'react';
-import { injectIntl } from 'react-intl';
+import { injectIntl, FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import LockOpenIcon from '@material-ui/icons/LockOpen';
 import {
-  Form, formatMessageWithValues, journalize, ProgressOrError, withModulesManager, formatMessage,
+  Form,
+  formatMessageWithValues,
+  journalize,
+  ProgressOrError,
+  withModulesManager,
+  formatMessage,
 } from '@openimis/fe-core';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  Checkbox,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+} from '@material-ui/core';
 import { bindActionCreators } from 'redux';
 import {
   clearTicket,
-  fetchComments, fetchGrievanceConfiguration, fetchTicket, reopenTicket,
+  fetchComments,
+  fetchGrievanceConfiguration,
+  fetchTicket,
+  reopenTicket,
+  fetchDeathDossier,
+  updateDeathDossier,
 } from '../actions';
 import { ticketLabel } from '../utils/utils';
 import EditTicketPage from '../pages/EditTicketPage';
@@ -34,76 +56,62 @@ class TicketForm extends Component {
   componentDidMount() {
     this.props.fetchGrievanceConfiguration();
     if (this.props.ticketUuid) {
-      this.setState((state, props) => ({ ticketUuid: props.ticketUuid }));
+      this.setState({ ticketUuid: this.props.ticketUuid });
     }
   }
 
-  // eslint-disable-next-line react/sort-comp
   componentWillUnmount() {
     this.props.clearTicket();
   }
 
-  // eslint-disable-next-line no-unused-vars
-  componentDidUpdate(prevProps, prevState, snapshot) {
+  componentDidUpdate(prevProps, prevState) {
+    const { intl } = this.props;
+
     if (prevState.ticket.ticketCode !== this.state.ticket.ticketCode) {
-      document.title = formatMessageWithValues(
-        this.props.intl,
-        MODULE_NAME,
-        'ticket.title.bar',
-        { label: ticketLabel(this.state.ticket) },
-      );
+      document.title = formatMessageWithValues(intl, MODULE_NAME, 'ticket.title.bar', {
+        label: ticketLabel(this.state.ticket),
+      });
     }
-    if (prevProps.fetchedTicket !== this.props.fetchedTicket
-            && !!this.props.fetchedTicket
-            && !!this.props.ticket) {
-      this.setState((state, props) => ({
-        ticket: { ...props.ticket },
-        ticketUuid: props.ticket.id,
-        lockNew: false,
-      }));
+
+    if (
+      prevProps.fetchedTicket !== this.props.fetchedTicket &&
+      this.props.fetchedTicket &&
+      this.props.ticket
+    ) {
+      this.setState({ ticket: { ...this.props.ticket }, ticketUuid: this.props.ticket.id, lockNew: false });
+      if (this.props.ticket?.id) this.props.fetchDeathDossier(this.props.ticket.id);
     } else if (prevState.ticketUuid !== this.state.ticketUuid) {
       const filters = [`id: "${this.state.ticketUuid}"`];
       if (this.props.ticketVersion) filters.push(`ticketVersion: ${this.props.ticketVersion}`);
-      this.props.fetchTicket(
-        this.props.modulesManager,
-        filters,
-      );
+      this.props.fetchTicket(this.props.modulesManager, filters);
     } else if (prevProps.ticketUuid && !this.props.ticketUuid) {
       this.setState({ ticket: this._newTicket(), lockNew: false, ticketUuid: null });
     } else if (prevProps.submittingMutation && !this.props.submittingMutation) {
       this.props.journalize(this.props.mutation);
       this.setState((state) => ({ reset: state.reset + 1 }));
-      if (this.props?.ticket?.id) {
-        this.props.fetchTicket(
-          this.props.modulesManager,
-          [`id: "${this.state.ticketUuid}"`],
-        );
+      if (this.props.ticket?.id) {
+        this.props.fetchTicket(this.props.modulesManager, [`id: "${this.state.ticketUuid}"`]);
+        this.props.fetchDeathDossier(this.props.ticket.id);
       }
     }
   }
 
-  // eslint-disable-next-line react/sort-comp
   _newTicket() {
     return {};
   }
 
   reload = () => {
-    this.props.fetchComments(
-      this.state.ticket,
-    );
+    this.props.fetchComments(this.state.ticket);
   };
 
   canSave = () => {
-    if (!this.state.ticket.reporter) return false;
-    if (!this.state.ticket.category) return false;
+    const { ticket } = this.state;
+    if (!ticket.reporter || !ticket.category) return false;
     return true;
   };
 
   _save = (ticket) => {
-    this.setState(
-      { lockNew: !ticket.uuid },
-      () => this.props.save(ticket),
-    );
+    this.setState({ lockNew: !ticket.uuid }, () => this.props.save(ticket));
   };
 
   onEditedChanged = (ticket) => {
@@ -112,70 +120,144 @@ class TicketForm extends Component {
 
   reopenTicket = () => {
     const { intl, ticket } = this.props;
-    this.props.reopenTicket(
-      ticket.id,
-      formatMessage(intl, MODULE_NAME, 'reopenTicket.mutation.label'),
-    );
+    this.props.reopenTicket(ticket.id, formatMessage(intl, MODULE_NAME, 'reopenTicket.mutation.label'));
   };
 
+  handleToggleDossier = (key) => {
+    const { ticket, deathDossier } = this.props;
+    if (!ticket?.id || !deathDossier) return;
+    const updated = { ...deathDossier, [key]: !deathDossier[key] };
+    this.props.updateDeathDossier(ticket.id, updated);
+  };
+
+  renderDeathDossierPanel() {
+    const { intl, deathDossier, fetchingDeathDossier } = this.props;
+    if (!deathDossier) return null;
+
+    const docs = [
+      {
+        key: 'certificat_deces',
+        label: formatMessage(intl, MODULE_NAME, 'deathDossier.certificatDeces'),
+        url: deathDossier.file_certificat_deces_url,
+      },
+      {
+        key: 'pv_remplacant',
+        label: formatMessage(intl, MODULE_NAME, 'deathDossier.pvRemplacant'),
+        url: deathDossier.file_pv_remplacant_url,
+      },
+      {
+        key: 'id_nouveau_beneficiaire',
+        label: formatMessage(intl, MODULE_NAME, 'deathDossier.idNouveauBeneficiaire'),
+        url: deathDossier.file_id_nouveau_beneficiaire_url,
+      },
+      {
+        key: 'fiche_engagement',
+        label: formatMessage(intl, MODULE_NAME, 'deathDossier.ficheEngagement'),
+        url: deathDossier.file_fiche_engagement_url,
+      },
+    ];
+
+    const complete = deathDossier.complete || Object.values(deathDossier).every((v) => v === true);
+
+    return (
+      <Card style={{ marginBottom: 16 }}>
+        <CardHeader
+          title={formatMessage(intl, MODULE_NAME, 'deathDossier.title')}
+          subheader={
+            complete
+              ? formatMessage(intl, MODULE_NAME, 'deathDossier.complete')
+              : formatMessage(intl, MODULE_NAME, 'deathDossier.incomplete')
+          }
+          style={{
+            backgroundColor: complete ? '#e8f5e9' : '#ffebee',
+            color: complete ? '#388e3c' : '#d32f2f',
+          }}
+        />
+        <CardContent>
+          <Table>
+            <TableBody>
+              {docs.map((d) => (
+                <TableRow key={d.key}>
+                  <TableCell>{d.label}</TableCell>
+                  <TableCell align="center">
+                    <Checkbox
+                      checked={!!deathDossier[d.key]}
+                      onChange={() => this.handleToggleDossier(d.key)}
+                      disabled={fetchingDeathDossier}
+                      color="primary"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    {d.url ? (
+                      <Button href={d.url} target="_blank" color="primary">
+                        <FormattedMessage id="deathDossier.download" defaultMessage="Télécharger" />
+                      </Button>
+                    ) : (
+                      <Typography variant="caption" color="textSecondary">
+                        <FormattedMessage id="deathDossier.noFile" defaultMessage="Aucun fichier" />
+                      </Typography>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  }
+
   render() {
-    const {
-      fetchingTicket,
-      fetchedTicket,
-      errorTicket,
-      save, back,
-    } = this.props;
+    const { fetchingTicket, fetchedTicket, errorTicket, save, back, ticket } = this.props;
+    const { lockNew, reset, update, overview, ticketUuid } = this.state;
+    const readOnly = lockNew || !!ticket?.validityTo || this.props.readOnly;
 
-    const {
-      lockNew,
-      reset,
-      update,
-      overview,
-      ticketUuid,
-      ticket,
-    } = this.state;
-
-    const readOnly = lockNew || !!ticket.validityTo || this.props.readOnly;
     const actions = [
       {
         doIt: this.reopenTicket,
         icon: <LockOpenIcon />,
-        onlyIfDirty: ticket.status !== TICKET_STATUSES.CLOSED,
-        disabled: ticket.isHistory,
+        onlyIfDirty: ticket?.status !== TICKET_STATUSES.CLOSED,
+        disabled: ticket?.isHistory,
       },
     ];
 
+    const isDeathCase =
+      ticket?.category === 'Décès' || (ticket?.flags && ticket.flags.includes('DECES'));
+
+    const panels = ticketUuid
+      ? [EditTicketPage, ...(isDeathCase ? [() => this.renderDeathDossierPanel()] : []), TicketCommentPanel]
+      : [AddTicketPage];
+
     return (
-      <>
+      <Fragment>
         <ProgressOrError progress={fetchingTicket} error={errorTicket} />
         {(!!fetchedTicket || !ticketUuid) && (
-        <Form
-          module={MODULE_NAME}
-          edited_id={ticketUuid}
-          edited={ticket}
-          reset={reset}
-          update={update}
-          title="ticket.title.bar"
-          titleParams={{ label: ticketLabel(this.state.ticket) }}
-          back={back}
-          save={save ? this._save : null}
-          canSave={this.canSave}
-          reload={(ticketUuid || readOnly) && this.reload}
-          readOnly={readOnly}
-          overview={overview}
-          Panels={ticketUuid ? [EditTicketPage, TicketCommentPanel] : [AddTicketPage]}
-          onEditedChanged={this.onEditedChanged}
-          actions={actions}
-        />
+          <Form
+            module={MODULE_NAME}
+            edited_id={ticketUuid}
+            edited={ticket}
+            reset={reset}
+            update={update}
+            title="ticket.title.bar"
+            titleParams={{ label: ticketLabel(this.state.ticket) }}
+            back={back}
+            save={save ? this._save : null}
+            canSave={this.canSave}
+            reload={(ticketUuid || readOnly) && this.reload}
+            readOnly={readOnly}
+            overview={overview}
+            Panels={panels}
+            onEditedChanged={this.onEditedChanged}
+            actions={actions}
+          />
         )}
-      </>
+      </Fragment>
     );
   }
 }
 
-// eslint-disable-next-line no-unused-vars
-const mapStateToProps = (state, props) => ({
-  rights: !!state.core && !!state.core.user && !!state.core.user.i_user ? state.core.user.i_user.rights : [],
+const mapStateToProps = (state) => ({
+  rights: state.core?.user?.i_user?.rights || [],
   fetchingTicket: state.grievanceSocialProtection.fetchingTicket,
   errorTicket: state.grievanceSocialProtection.errorTicket,
   fetchedTicket: state.grievanceSocialProtection.fetchedTicket,
@@ -183,18 +265,23 @@ const mapStateToProps = (state, props) => ({
   submittingMutation: state.grievanceSocialProtection.submittingMutation,
   mutation: state.grievanceSocialProtection.mutation,
   grievanceConfig: state.grievanceSocialProtection.grievanceConfig,
+  deathDossier: state.grievanceSocialProtection.deathDossier,
+  fetchingDeathDossier: state.grievanceSocialProtection.fetchingDeathDossier,
 });
 
-const mapDispatchToProps = (dispatch) => bindActionCreators({
-  fetchTicket,
-  fetchComments,
-  reopenTicket,
-  fetchGrievanceConfiguration,
-  clearTicket,
-  journalize,
-}, dispatch);
+const mapDispatchToProps = (dispatch) =>
+  bindActionCreators(
+    {
+      fetchTicket,
+      fetchComments,
+      reopenTicket,
+      fetchGrievanceConfiguration,
+      clearTicket,
+      journalize,
+      fetchDeathDossier,
+      updateDeathDossier,
+    },
+    dispatch
+  );
 
-export default withModulesManager(connect(mapStateToProps, mapDispatchToProps)(
-  injectIntl(TicketForm),
-
-));
+export default withModulesManager(connect(mapStateToProps, mapDispatchToProps)(injectIntl(TicketForm)));

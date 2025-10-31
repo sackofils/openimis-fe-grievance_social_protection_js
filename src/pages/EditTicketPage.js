@@ -4,13 +4,14 @@
 /* eslint-disable react/no-unused-state */
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/destructuring-assignment */
-import React, { Component } from 'react';
-import ReactToPrint, { PrintContextConsumer } from 'react-to-print';
-import PrintIcon from '@material-ui/icons/Print';
-import TrendingUpIcon from '@material-ui/icons/TrendingUp';
-import { withTheme, withStyles } from '@material-ui/core/styles';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
+import React, { Component } from "react";
+import ReactToPrint, { PrintContextConsumer } from "react-to-print";
+import PrintIcon from "@material-ui/icons/Print";
+import TrendingUpIcon from "@material-ui/icons/TrendingUp";
+import { withTheme, withStyles } from "@material-ui/core/styles";
+import { injectIntl } from "react-intl";
+import { connect } from "react-redux";
+import { bindActionCreators } from "redux";
 import {
   Grid,
   Paper,
@@ -18,6 +19,7 @@ import {
   Divider,
   IconButton,
   Button,
+  Tooltip,
   TextField,
   Dialog,
   DialogTitle,
@@ -33,79 +35,98 @@ import {
   TableHead,
   TableBody,
   TableRow,
-  TableCell
-} from '@material-ui/core';
+  TableCell,
+} from "@material-ui/core";
 import {
   journalize,
   TextInput,
+  withHistory,
   PublishedComponent,
+  withModulesManager,
   FormattedMessage,
-} from '@openimis/fe-core';
-import _ from 'lodash';
-import { Save } from '@material-ui/icons';
-import { updateTicket, fetchTicket, createTicketComment, escalateTicket } from '../actions';
-import { EMPTY_STRING, MODULE_NAME } from '../constants';
-import TicketPrintTemplate from '../components/TicketPrintTemplate';
+} from "@openimis/fe-core";
+import _ from "lodash";
+import { Save } from "@material-ui/icons";
+import {
+  updateTicket,
+  fetchTicket,
+  createTicketComment,
+  escalateTicket,
+  fetchDeathDossier,
+  updateDeathDossier,
+} from "../actions";
+import { EMPTY_STRING, MODULE_NAME } from "../constants";
+import TicketPrintTemplate from "../components/TicketPrintTemplate";
+import DeathDossierBeneficiaryForm from "../components/DeathDossierBeneficiaryForm";
+import CloudUploadIcon from "@material-ui/icons/CloudUpload";
+import CloudDownloadIcon from "@material-ui/icons/CloudDownload";
+import GetAppIcon from "@material-ui/icons/GetApp";
+import WarningIcon from "@material-ui/icons/Warning";
+import CheckCircleIcon from "@material-ui/icons/CheckCircle";
 
 const styles = (theme) => ({
   paper: theme.paper.paper,
   tableTitle: theme.table.title,
   item: theme.paper.item,
   fullHeight: {
-    height: '100%',
+    height: "100%",
   },
 });
 
 const JSON_EXT_LABELS = {
-  "_id": "Identifiant de soumission",
-  "_status": "Statut (Kobo)",
-  "anonyme": "Plainte anonyme",
+  _id: "Identifiant de soumission",
+  _status: "Statut (Kobo)",
+  anonyme: "Plainte anonyme",
   "household.code_confirme": "Code ménage confirmé",
   "household.autre_information": "Autres informations",
-  "kobo_uuid": "UUID Kobo",
-  "root_uuid": "UUID racine",
-  "telephonePrenomReclamantExterne": "N° de téléphone du plaignant",
-  "instance_id": "ID d’instance",
-  "region_code": "Code région",
-  "region_name": "Nom de la région",
-  "form_version": "Version du formulaire",
-  "formhub_uuid": "UUID Formhub",
-  "submitted_at": "Soumise le",
-  "submitted_by": "Soumise par",
-  "district_code": "Code district/commune",
-  "district_name": "Nom du district/commune",
-  "other_problem": "Autre problème",
-  "reporter_type": "Type de rapporteur",
-  "personne_visee": "La plainte vise-t-elle une personne ?",
-  "prefecture_code": "Code préfecture",
-  "prefecture_name": "Nom de la préfecture",
-  "_xform_id_string": "Identifiant du formulaire (texte)",
-  "temoin_plaignant": "Le plaignant est-il témoin ?",
-  "beneficiaire_type": "Type de bénéficiaire",
-  "solution_proposee": "Solution proposée",
-  "anonyme_preference": "Souhaite rester anonyme",
-  "prefecture_cgp_code": "Code préfecture (CGP)",
+  kobo_uuid: "UUID Kobo",
+  root_uuid: "UUID racine",
+  telephonePrenomReclamantExterne: "N° de téléphone du plaignant",
+  instance_id: "ID d’instance",
+  region_code: "Code région",
+  region_name: "Nom de la région",
+  form_version: "Version du formulaire",
+  formhub_uuid: "UUID Formhub",
+  submitted_at: "Soumise le",
+  submitted_by: "Soumise par",
+  district_code: "Code district/commune",
+  district_name: "Nom du district/commune",
+  other_problem: "Autre problème",
+  reporter_type: "Type de rapporteur",
+  personne_visee: "La plainte vise-t-elle une personne ?",
+  prefecture_code: "Code préfecture",
+  prefecture_name: "Nom de la préfecture",
+  _xform_id_string: "Identifiant du formulaire (texte)",
+  temoin_plaignant: "Le plaignant est-il témoin ?",
+  beneficiaire_type: "Type de bénéficiaire",
+  solution_proposee: "Solution proposée",
+  anonyme_preference: "Souhaite rester anonyme",
+  prefecture_cgp_code: "Code préfecture (CGP)",
   "responsable_plainte[]": "Responsables de traitement de la plainte",
-  "sub_prefecture_code": "Code sous-préfecture",
-  "sub_prefecture_name": "Nom de la sous-préfecture",
-  "cgp_nom_confirmation": "Nom du CGP confirmé",
-  "complainant_lastname": "Nom du plaignant",
-  "complainant_firstname": "Prénom du plaignant",
-  "cgp_contact_confirmation": "Contact du CGP confirmé",
-  "sous_prefecture_cgp_code": "Code sous-préfecture (CGP)",
-  "workflow.history[].at": "Horodatage de l’évènement (RFC 3339)"
+  sub_prefecture_code: "Code sous-préfecture",
+  sub_prefecture_name: "Nom de la sous-préfecture",
+  cgp_nom_confirmation: "Nom du CGP confirmé",
+  complainant_lastname: "Nom du plaignant",
+  complainant_firstname: "Prénom du plaignant",
+  cgp_contact_confirmation: "Contact du CGP confirmé",
+  sous_prefecture_cgp_code: "Code sous-préfecture (CGP)",
+  "workflow.history[].at": "Horodatage de l’évènement (RFC 3339)",
 };
 
 class EditTicketPage extends Component {
   // ---------- Helpers parsing / labels ----------
   parseJsonSafe = (raw) => {
     if (!raw) return {};
-    if (typeof raw === 'object') return raw;
-    if (typeof raw === 'string') {
+    if (typeof raw === "object") return raw;
+    if (typeof raw === "string") {
       try {
         const once = JSON.parse(raw);
-        if (typeof once === 'string') {
-          try { return JSON.parse(once); } catch { return { value: once }; }
+        if (typeof once === "string") {
+          try {
+            return JSON.parse(once);
+          } catch {
+            return { value: once };
+          }
         }
         return once || {};
       } catch {
@@ -115,55 +136,68 @@ class EditTicketPage extends Component {
     return {};
   };
 
-   // Format date/heure ISO → lisible (locale navigateur)
+  // Format date/heure ISO → lisible (locale navigateur)
   fmtDateTime = (val) => {
-    if (!val) return '';
-    try { return new Date(val).toLocaleString(); } catch { return String(val); }
+    if (!val) return "";
+    try {
+      return new Date(val).toLocaleString();
+    } catch {
+      return String(val);
+    }
   };
 
   humanize = (s) => {
-    if (!s) return '';
-    const t = String(s).replace(/[_-]+/g, ' ').trim();
+    if (!s) return "";
+    const t = String(s).replace(/[_-]+/g, " ").trim();
     return t.charAt(0).toUpperCase() + t.slice(1);
   };
 
   labelForPath = (path) => {
     if (JSON_EXT_LABELS[path]) return JSON_EXT_LABELS[path];
-    const parts = path.split('.');
+    const parts = path.split(".");
     if (parts.length === 1) return this.humanize(parts[0]);
-    return `${this.humanize(parts.slice(0, -1).join(' / '))} / ${this.humanize(parts.slice(-1)[0])}`;
+    return `${this.humanize(parts.slice(0, -1).join(" / "))} / ${this.humanize(parts.slice(-1)[0])}`;
   };
 
   // Aplatis json_ext -> [{path,label,value}] ; priorité au label de la donnée: title/label
   flattenJsonExt = (obj) => {
-    if (typeof obj === 'string') obj = { value: obj };
+    if (typeof obj === "string") obj = { value: obj };
     const out = [];
     const coerce = (v) => {
-      if (Array.isArray(v)) return v.join(', ');
-      if (typeof v === 'boolean') return v ? 'Oui' : 'Non';
-      if (v === null || v === undefined) return '';
+      if (Array.isArray(v)) return v.join(", ");
+      if (typeof v === "boolean") return v ? "Oui" : "Non";
+      if (v === null || v === undefined) return "";
       return String(v);
     };
     const walk = (o, prefix = []) => {
       Object.entries(o || {}).forEach(([k, v]) => {
         const path = [...prefix, k];
-        if (v && typeof v === 'object' && !Array.isArray(v)) {
-          const hasTitleOrLabel = ('title' in v) || ('label' in v);
-          const hasValueLike = ('value' in v) || ('val' in v) || ('text' in v);
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+          const hasTitleOrLabel = "title" in v || "label" in v;
+          const hasValueLike = "value" in v || "val" in v || "text" in v;
           if (hasTitleOrLabel && hasValueLike) {
             const lbl = v.title ?? v.label ?? k;
-            const rawVal = ('value' in v) ? v.value : (('val' in v) ? v.val : v.text);
-            out.push({ path: path.join('.'), label: String(lbl), value: coerce(rawVal) });
+            const rawVal = "value" in v ? v.value : "val" in v ? v.val : v.text;
+            out.push({
+              path: path.join("."),
+              label: String(lbl),
+              value: coerce(rawVal),
+            });
           } else {
             walk(v, path);
           }
         } else {
-          out.push({ path: path.join('.'), label: this.labelForPath(path.join('.')), value: coerce(v) });
+          out.push({
+            path: path.join("."),
+            label: this.labelForPath(path.join(".")),
+            value: coerce(v),
+          });
         }
       });
     };
     walk(obj || {});
-    if (!out.length) out.push({ path: '', label: 'Aucune donnée supplémentaire', value: '' });
+    if (!out.length)
+      out.push({ path: "", label: "Aucune donnée supplémentaire", value: "" });
     return out;
   };
 
@@ -178,9 +212,8 @@ class EditTicketPage extends Component {
       "cgp_contact_confirmation",
       "cgp_nom_confirmation",
     ];
-    return fields.filter(f => !sensitiveKeys.some(k => f.path.includes(k)));
+    return fields.filter((f) => !sensitiveKeys.some((k) => f.path.includes(k)));
   };
-
 
   getJSONExtWithoutWorkflow = (ticket) => {
     const raw = ticket?.jsonExt ?? ticket?.json_ext ?? {};
@@ -189,7 +222,23 @@ class EditTicketPage extends Component {
     // On retire "workflow" sans muter l'objet source
     const { workflow, ...jsonExtWithoutWorkflow } = parsed;
     return jsonExtWithoutWorkflow;
-  }
+  };
+
+  // Renvoie { differentLevel, isSuperuser, ticketRole, userRoles }
+  computeLevelAccess = () => {
+    const { user } = this.props;
+    const { stateEdited } = this.state;
+
+    const jsonExt = this.parseJsonSafe(stateEdited?.jsonExt);
+    const ticketRole = jsonExt?.workflow?.assignee_role?.toUpperCase?.() || "";
+
+    const userRoles = user?.roles || [];
+    const isSuperuser = !!user?.is_superuser;
+    const differentLevel =
+      !isSuperuser && !!ticketRole && !userRoles.includes(ticketRole);
+
+    return { differentLevel, isSuperuser, ticketRole, userRoles };
+  };
 
   constructor(props) {
     super(props);
@@ -198,36 +247,99 @@ class EditTicketPage extends Component {
       comments: props.comments,
       reporter: {},
       grievanceConfig: {},
-      jsonFields: this.flattenJsonExt(this.getJSONExtWithoutWorkflow(props.ticket)),
+      jsonFields: this.flattenJsonExt(
+        this.getJSONExtWithoutWorkflow(props.ticket),
+      ),
       showEscalateDialog: false,
       escalating: false,
     };
   }
 
-  componentDidMount() {
-    if (this.props.edited_id) {
-      this.setState({ grievanceConfig: this.props.grievanceConfig });
-      this.setState({ stateEdited: this.props.ticket });
-      if (this.props.ticket.reporter) {
-        this.setState({ reporter: JSON.parse(JSON.parse(this.props.ticket.reporter || '{}'), '{}') });
+  async componentDidMount() {
+    const { edited_id, ticket, grievanceConfig, fetchDeathDossier } =
+      this.props;
+
+    if (!edited_id || !ticket) return;
+
+    // Initialisation de base
+    this.setState({
+      grievanceConfig,
+      stateEdited: ticket,
+    });
+
+    // Initialisation du reporter
+    if (ticket.reporter) {
+      try {
+        this.setState({
+          reporter: JSON.parse(JSON.parse(ticket.reporter || "{}"), "{}"),
+        });
+      } catch (err) {
+        console.warn("Erreur parsing reporter JSON:", err);
       }
-      // const jsonObj = this.parseJsonSafe(this.props.ticket && (this.props.ticket.jsonExt || this.props.ticket.json_ext));
-      const jsonObj = this.parseJsonSafe(this.getJSONExtWithoutWorkflow(this.props.ticket));
-      this.setState({ jsonFields: this.flattenJsonExt(jsonObj) });
+    }
+
+    // Lecture du JSON étendu (hors workflow)
+    const jsonObj = this.parseJsonSafe(this.getJSONExtWithoutWorkflow(ticket));
+    this.setState({ jsonFields: this.flattenJsonExt(jsonObj) });
+
+    // Si le ticket correspond à un cas décès ou dossier spécial : on charge le deathDossier
+    const isDeathCase =
+      (ticket?.subCategoryLevel1 || "").toLowerCase().includes("décès") ||
+      (ticket?.category || "").toLowerCase().includes("deces");
+
+    if (isDeathCase) {
+      try {
+        await fetchDeathDossier(ticket.id);
+      } catch (err) {
+        console.warn("Impossible de charger le deathDossier:", err);
+      }
     }
   }
 
   componentDidUpdate(prevProps) {
-    if (prevProps.submittingMutation && !this.props.submittingMutation) {
-      this.props.journalize(this.props.mutation);
+    const {
+      submittingMutation,
+      mutation,
+      ticket,
+      journalize,
+      deathDossier,
+      fetchDeathDossier,
+    } = this.props;
+
+    // Journalisation après mutation
+    if (prevProps.submittingMutation && !submittingMutation) {
+      journalize(mutation);
     }
-    if (!_.isEqual(prevProps.ticket, this.props.ticket)) {
-      // const jsonObj = this.parseJsonSafe(this.props.ticket && (this.props.ticket.jsonExt || this.props.ticket.json_ext));
-      const jsonObj = this.parseJsonSafe(this.getJSONExtWithoutWorkflow(this.props.ticket));
+
+    // Mise à jour si le ticket a changé
+    if (!_.isEqual(prevProps.ticket, ticket) && ticket) {
+      const jsonObj = this.parseJsonSafe(
+        this.getJSONExtWithoutWorkflow(ticket),
+      );
+
       this.setState({
-        stateEdited: this.props.ticket,
+        stateEdited: ticket,
         jsonFields: this.flattenJsonExt(jsonObj),
       });
+
+      // Recharger le dossier décès si le ticket est un cas décès
+      const isDeathCase = (ticket?.subCategoryLevel1 || "")
+        .toLowerCase()
+        .includes("décès");
+
+      if (isDeathCase) {
+        fetchDeathDossier(ticket.id);
+      }
+    }
+
+    // Fusion du deathDossier Redux → stateEdited
+    if (!_.isEqual(prevProps.deathDossier, deathDossier) && deathDossier) {
+      this.setState((prev) => ({
+        stateEdited: {
+          ...prev.stateEdited,
+          deathDossier,
+        },
+      }));
     }
   }
 
@@ -245,8 +357,8 @@ class EditTicketPage extends Component {
   };
 
   extractFieldFromJsonExt = (reporter, field) => {
-    if (reporter && reporter.jsonExt) return reporter.jsonExt[field] || '';
-    return '';
+    if (reporter && reporter.jsonExt) return reporter.jsonExt[field] || "";
+    return "";
   };
 
   doesTicketChange = () => {
@@ -265,21 +377,280 @@ class EditTicketPage extends Component {
     this.setState({ escalating: true });
     try {
       await doEscalate(stateEdited.id, `escalated ticket ${stateEdited.code}`);
-      // rechargement du ticket courant
-      await refetch(null, [`id: "${stateEdited.id}"`]);
+      await refetch(this.props.modulesManager, [`id: "${stateEdited.id}"`]);
     } finally {
-      window.location.reload();
-      // this.setState({ escalating: false, showEscalateDialog: false });
+      const updatedTicket = this.props.ticket;
+      const jsonObj = this.parseJsonSafe(this.getJSONExtWithoutWorkflow(updatedTicket));
+      this.setState({
+        stateEdited: updatedTicket,
+        jsonFields: this.flattenJsonExt(jsonObj),
+        escalating: false,
+        showEscalateDialog: false,
+      });
     }
+  };
+
+  renderDeathDossiersSection = () => {
+    const { classes, updateDeathDossier } = this.props;
+    const { stateEdited } = this.state;
+
+    const isDeathCase =
+      (stateEdited?.subCategoryLevel1 || "").toLowerCase().includes("décès") ||
+      (stateEdited?.category || "").toLowerCase().includes("speciaux");
+
+    if (!isDeathCase) return null;
+
+    const death = stateEdited?.deathDossier || {};
+
+    const dossiers = [
+      {
+        key: "certificat_deces",
+        label: (
+          <FormattedMessage
+            module={MODULE_NAME}
+            id="deathDossier.certificatDeces"
+          />
+        ),
+        fileField: "file_certificat_deces",
+        provided: !!death?.certificatDeces,
+        fileUrl: death?.fileCertificatDecesUrl,
+      },
+      {
+        key: "pv_remplacant",
+        label: (
+          <FormattedMessage
+            module={MODULE_NAME}
+            id="deathDossier.pvRemplacant"
+          />
+        ),
+        fileField: "file_pv_remplacant",
+        provided: !!death?.pvRemplacant,
+        fileUrl: death?.filePvRemplacantUrl,
+      },
+      {
+        key: "id_nouveau_beneficiaire",
+        label: (
+          <FormattedMessage
+            module={MODULE_NAME}
+            id="deathDossier.idNouveauBeneficiaire"
+          />
+        ),
+        fileField: "file_id_nouveau_beneficiaire",
+        provided: !!death?.idNouveauBeneficiaire,
+        fileUrl: death?.fileIdNouveauBeneficiaireUrl,
+      },
+      {
+        key: "fiche_engagement",
+        label: (
+          <FormattedMessage
+            module={MODULE_NAME}
+            id="deathDossier.ficheEngagement"
+          />
+        ),
+        fileField: "file_fiche_engagement",
+        provided: !!death?.ficheEngagement,
+        fileUrl: death?.fileFicheEngagementUrl,
+      },
+    ];
+
+    const allProvided = dossiers.every((d) => d.provided);
+
+    const handleFileChange = async (event, dossierKey, fileField) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const files = { [fileField]: file };
+      const dossierUpdate = { [dossierKey]: true };
+
+      try {
+        await updateDeathDossier(stateEdited.id, dossierUpdate, files);
+        this.setState((prev) => ({
+          stateEdited: {
+            ...prev.stateEdited,
+            deathDossier: {
+              ...prev.stateEdited.deathDossier,
+              [dossierKey]: true,
+              [`${fileField}Url`]: URL.createObjectURL(file),
+            },
+          },
+        }));
+      } catch (err) {
+        console.error("Erreur lors du chargement du fichier:", err);
+      }
+    };
+
+    return (
+      <Grid container style={{ marginTop: 20 }}>
+        <Grid item xs={12}>
+          <Paper className={classes.paper}>
+            <Grid container className={classes.tableTitle}>
+              <Grid item xs={8}>
+                <Typography>
+                  <FormattedMessage
+                    module={MODULE_NAME}
+                    id="deathDossier.sectionTitle"
+                  />
+                </Typography>
+              </Grid>
+              <Grid item xs={4} style={{ textAlign: "right" }}>
+                {allProvided ? (
+                  <Typography style={{ color: "green", fontWeight: "bold" }}>
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="deathDossier.complete"
+                    />
+                  </Typography>
+                ) : (
+                  <Typography style={{ color: "orange", fontWeight: "bold" }}>
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="deathDossier.incomplete"
+                    />
+                  </Typography>
+                )}
+              </Grid>
+            </Grid>
+            <Divider />
+
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="deathDossier.document"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="deathDossier.provided"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="deathDossier.file"
+                    />
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {dossiers.map((d, idx) => (
+                  <TableRow key={`death-file-${idx}`}>
+                    <TableCell>{d.label}</TableCell>
+                    <TableCell align="center">
+                      <Checkbox
+                        color="primary"
+                        checked={!!d.provided}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          const updatedDossier = {
+                            ...stateEdited.deathDossier,
+                            [d.key]: checked,
+                          };
+                          updateDeathDossier(stateEdited.id, updatedDossier);
+                          this.setState((prev) => ({
+                            stateEdited: {
+                              ...prev.stateEdited,
+                              deathDossier: updatedDossier,
+                            },
+                          }));
+                        }}
+                      />
+                    </TableCell>
+
+                    <TableCell align="center">
+                      {d.provided && (
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            gap: 10,
+                          }}
+                        >
+                          {/* Télécharger */}
+                          {d.fileUrl && (
+                            <Tooltip title="Télécharger la pièce jointe">
+                              <IconButton
+                                color="primary"
+                                size="small"
+                                onClick={() => window.open(d.fileUrl, "_blank")}
+                              >
+                                <CloudDownloadIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+
+                          {/* Modifier / Téléverser */}
+                          <input
+                            id={`file-input-${d.key}`}
+                            type="file"
+                            accept="application/pdf,image/*"
+                            style={{ display: "none" }}
+                            onChange={(e) =>
+                              handleFileChange(e, d.key, d.fileField)
+                            }
+                          />
+                          <label htmlFor={`file-input-${d.key}`}>
+                            <Tooltip
+                              title={
+                                d.fileUrl
+                                  ? "Remplacer la pièce jointe"
+                                  : "Téléverser un fichier"
+                              }
+                            >
+                              <IconButton
+                                color="secondary"
+                                component="span"
+                                size="small"
+                              >
+                                <CloudUploadIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </label>
+                        </div>
+                      )}
+
+                      {!d.provided && !d.fileUrl && (
+                        <Typography variant="body2" color="textSecondary">
+                          <FormattedMessage
+                            module={MODULE_NAME}
+                            id="deathDossier.noFile"
+                          />
+                        </Typography>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {allProvided && (
+              <DeathDossierBeneficiaryForm
+                dossier={stateEdited}
+                onChange={(updated) => this.setState({ stateEdited: updated })}
+                classes={classes}
+              />
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+    );
   };
 
   renderWorkflowSection = () => {
     const { classes } = this.props;
+
     // On récupère json_ext depuis le ticket de l'état ; fallback depuis props
-    const jsonExtObj =
-      this.parseJsonSafe(this.state?.stateEdited?.jsonExt || this.props?.ticket?.jsonExt || {});
+    const jsonExtObj = this.parseJsonSafe(
+      this.state?.stateEdited?.jsonExt || this.props?.ticket?.jsonExt || {},
+    );
     const wf = jsonExtObj.workflow || {};
     const history = Array.isArray(wf.history) ? wf.history : [];
+
+    const { differentLevel, isSuperuser } = this.computeLevelAccess();
 
     return (
       <Grid container>
@@ -287,19 +658,54 @@ class EditTicketPage extends Component {
           <Paper className={classes.paper}>
             <Grid container className={classes.tableTitle}>
               <Grid item xs={12} className={classes.tableTitle}>
-                <Typography>Historique du workflow</Typography>
+                <Typography>
+                  <FormattedMessage
+                    module={MODULE_NAME}
+                    id="workflow.sectionTitle"
+                  />
+                </Typography>
               </Grid>
             </Grid>
             <Divider />
 
-            {/* Résumé workflow en champs read-only */}
+            {/* Résumé du workflow */}
             <Grid container className={classes.item} spacing={2}>
               <Grid item xs={4} className={classes.item}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label={
+                      <FormattedMessage
+                        module={MODULE_NAME}
+                        id="workflow.assignedRole"
+                      />
+                    }
+                    value={wf.assignee_role || ""}
+                    InputProps={{ readOnly: true }}
+                  />
+                  {differentLevel && !isSuperuser ? (
+                    <Tooltip title="Ce ticket est attribué à un autre niveau que le vôtre">
+                      <WarningIcon style={{ color: "#d32f2f" }} />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Ce ticket correspond à votre niveau d'intervention">
+                      <CheckCircleIcon style={{ color: "#388e3c" }} />
+                    </Tooltip>
+                  )}
+                </div>
+              </Grid>
+              <Grid item xs={4} className={classes.item}>
                 <TextField
                   fullWidth
                   size="small"
-                  label="Rôle assigné"
-                  value={wf.assignee_role || ''}
+                  label={
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="workflow.escalationLevel"
+                    />
+                  }
+                  value={wf.escalation_level ?? ""}
                   InputProps={{ readOnly: true }}
                 />
               </Grid>
@@ -307,16 +713,12 @@ class EditTicketPage extends Component {
                 <TextField
                   fullWidth
                   size="small"
-                  label="Niveau d’escalade"
-                  value={wf.escalation_level ?? ''}
-                  InputProps={{ readOnly: true }}
-                />
-              </Grid>
-              <Grid item xs={4} className={classes.item}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Dernière escalade"
+                  label={
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="workflow.lastEscalatedAt"
+                    />
+                  }
                   value={this.fmtDateTime(wf.last_escalated_at)}
                   InputProps={{ readOnly: true }}
                 />
@@ -330,30 +732,65 @@ class EditTicketPage extends Component {
               <Grid item xs={12}>
                 {history.length === 0 ? (
                   <Typography variant="body2" color="textSecondary">
-                    Aucun évènement d’escalade enregistré.
+                    <FormattedMessage
+                      module={MODULE_NAME}
+                      id="workflow.noHistory"
+                    />
                   </Typography>
                 ) : (
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Date / heure</TableCell>
-                        <TableCell>Par</TableCell>
-                        <TableCell>Source</TableCell>
-                        <TableCell>Vers rôle</TableCell>
-                        <TableCell align="right">Délai (j)</TableCell>
-                        <TableCell align="right">Utilisateur cible (ID)</TableCell>
+                        <TableCell>
+                          <FormattedMessage
+                            module={MODULE_NAME}
+                            id="workflow.date"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormattedMessage
+                            module={MODULE_NAME}
+                            id="workflow.by"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormattedMessage
+                            module={MODULE_NAME}
+                            id="workflow.source"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormattedMessage
+                            module={MODULE_NAME}
+                            id="workflow.toRole"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <FormattedMessage
+                            module={MODULE_NAME}
+                            id="workflow.slaDays"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <FormattedMessage
+                            module={MODULE_NAME}
+                            id="workflow.targetUser"
+                          />
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {history.map((h, idx) => (
                         <TableRow key={`wf-row-${idx}`}>
                           <TableCell>{this.fmtDateTime(h.at)}</TableCell>
-                          <TableCell>{h.by ?? ''}</TableCell>
-                          <TableCell>{h.source ?? ''}</TableCell>
-                          <TableCell>{h.to_role ?? ''}</TableCell>
-                          <TableCell align="right">{h.sla_days ?? ''}</TableCell>
+                          <TableCell>{h.by ?? ""}</TableCell>
+                          <TableCell>{h.source ?? ""}</TableCell>
+                          <TableCell>{h.to_role ?? ""}</TableCell>
                           <TableCell align="right">
-                            {h.to_user_fullname === null || h.to_user_fullname === undefined ? '' : String(h.to_user_fullname)}
+                            {h.sla_days ?? ""}
+                          </TableCell>
+                          <TableCell align="right">
+                            {h.to_user_fullname || ""}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -371,124 +808,148 @@ class EditTicketPage extends Component {
   render() {
     const {
       classes,
-      titleone = ' Ticket.ComplainantInformation',
-      titletwo = ' Ticket.DescriptionOfEvents',
-      titlethree = ' Ticket.Resolution',
+      titleone = " Ticket.ComplainantInformation",
+      titletwo = " Ticket.DescriptionOfEvents",
+      titlethree = " Ticket.Resolution",
       titleParams = { label: EMPTY_STRING },
     } = this.props;
 
     const propsReadOnly = this.props.readOnly;
 
     const {
-      stateEdited, reporter, comments, jsonFields, showEscalateDialog, escalating,
+      stateEdited,
+      reporter,
+      comments,
+      jsonFields,
+      showEscalateDialog,
+      escalating,
     } = this.state;
 
     const isSensitive = stateEdited?.category === "Cas sensibles";
-    const filteredJsonFields = this.filterSensitiveJsonFields(jsonFields, isSensitive);
+    const filteredJsonFields = this.filterSensitiveJsonFields(
+      jsonFields,
+      isSensitive,
+    );
 
-    const escalateDisabled = propsReadOnly || !stateEdited?.id
-      || ['RESOLVED', 'CLOSED'].includes(stateEdited?.status);
+    // Si l’utilisateur n’est pas superuser et que son rôle n’est pas le même que le ticketRole
+    // const differentLevel = !isSuperuser && ticketRole && !userRoles.includes(ticketRole);
 
-    console.log('stateEdited.district', stateEdited);
+    const { differentLevel, isSuperuser } = this.computeLevelAccess();
+
+    const escalateDisabled =
+      propsReadOnly ||
+      !stateEdited?.id ||
+      ["RESOLVED", "CLOSED"].includes(stateEdited?.status) ||
+      differentLevel;
 
     return (
       <div className={classes.page}>
         <Grid container>
           <Grid item xs={12}>
             {!isSensitive && stateEdited?.reporter && (
-            <Paper className={classes.paper}>
-              <Grid container className={classes.tableTitle}>
-                <Grid item xs={8} className={classes.tableTitle}>
-                  <Typography>
-                    <FormattedMessage module={MODULE_NAME} id={titleone} values={titleParams} />
-                  </Typography>
-                </Grid>
-              </Grid>
-              <Grid container className={classes.item}>
-                {stateEdited.reporterTypeName === 'individual' && (
-                <Grid item xs={3} className={classes.item}>
-                  <PublishedComponent
-                    pubRef="individual.IndividualPicker"
-                    value={reporter}
-                    onChange={(v) => this.updateAttribute('reporter', v)}
-                    label="Complainant"
-                    readOnly
-                  />
-                </Grid>
-                )}
-              </Grid>
-              <Divider />
-              <Grid container className={classes.item}>
-                {stateEdited.reporterTypeName === 'individual' && (
-                <>
-                  <Grid item xs={4} className={classes.item}>
-                    <TextInput
-                      module={MODULE_NAME}
-                      label="ticket.name"
-                      value={reporter && reporter.individual
-                        ? `${reporter.individual.firstName} ${reporter.individual.lastName} ${reporter.individual.dob}`
-                        : reporter
-                          ? `${reporter.firstName} ${reporter.lastName} ${reporter.dob}`
-                          : EMPTY_STRING}
-                      onChange={(v) => this.updateAttribute('name', v)}
-                      required={false}
-                      readOnly
-                    />
+              <Paper className={classes.paper}>
+                <Grid container className={classes.tableTitle}>
+                  <Grid item xs={8} className={classes.tableTitle}>
+                    <Typography>
+                      <FormattedMessage
+                        module={MODULE_NAME}
+                        id={titleone}
+                        values={titleParams}
+                      />
+                    </Typography>
                   </Grid>
-                  <Grid item xs={4} className={classes.item}>
-                    <TextInput
-                      module={MODULE_NAME}
-                      label="ticket.phone"
-                      value={!!stateEdited && !!stateEdited.reporter
-                        ? this.extractFieldFromJsonExt(reporter, 'phone')
-                        : EMPTY_STRING}
-                      onChange={(v) => this.updateAttribute('phone', v)}
-                      required={false}
-                      readOnly
-                    />
-                  </Grid>
-                  <Grid item xs={4} className={classes.item}>
-                    <TextInput
-                      module={MODULE_NAME}
-                      label="ticket.email"
-                      value={!!stateEdited && !!stateEdited.reporter
-                        ? this.extractFieldFromJsonExt(reporter, 'email')
-                        : EMPTY_STRING}
-                      onChange={(v) => this.updateAttribute('email', v)}
-                      required={false}
-                      readOnly
-                    />
-                  </Grid>
-                </>
-                )}
-                {stateEdited.reporterTypeName === 'beneficiary' && (
-                <PublishedComponent
-                  pubRef="socialProtection.BeneficiaryPicker"
-                  onChange={(v) => this.updateAttribute('reporter', v)}
-                  readOnly
-                  value={{
-                    individual: {
-                      firstName: stateEdited.reporterFirstName,
-                      lastName: stateEdited.reporterLastName,
-                      dob: stateEdited.reporterDob,
-                    },
-                  }}
-                  module={MODULE_NAME}
-                />
-                )}
-                {stateEdited.reporterTypeName === 'user' && (
-                <Grid item xs={6} className={classes.item}>
-                  <PublishedComponent
-                    pubRef="admin.UserPicker"
-                    value={reporter}
-                    module="core"
-                    onChange={(v) => this.updateAttribute('reporter', v)}
-                    readOnly
-                  />
                 </Grid>
-                )}
-              </Grid>
-            </Paper>
+                <Grid container className={classes.item}>
+                  {stateEdited.reporterTypeName === "individual" && (
+                    <Grid item xs={3} className={classes.item}>
+                      <PublishedComponent
+                        pubRef="individual.IndividualPicker"
+                        value={reporter}
+                        onChange={(v) => this.updateAttribute("reporter", v)}
+                        label="Complainant"
+                        readOnly
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+                <Divider />
+                <Grid container className={classes.item}>
+                  {stateEdited.reporterTypeName === "individual" && (
+                    <>
+                      <Grid item xs={4} className={classes.item}>
+                        <TextInput
+                          module={MODULE_NAME}
+                          label="ticket.name"
+                          value={
+                            reporter && reporter.individual
+                              ? `${reporter.individual.firstName} ${reporter.individual.lastName} ${reporter.individual.dob}`
+                              : reporter
+                                ? `${reporter.firstName} ${reporter.lastName} ${reporter.dob}`
+                                : EMPTY_STRING
+                          }
+                          onChange={(v) => this.updateAttribute("name", v)}
+                          required={false}
+                          readOnly
+                        />
+                      </Grid>
+                      <Grid item xs={4} className={classes.item}>
+                        <TextInput
+                          module={MODULE_NAME}
+                          label="ticket.phone"
+                          value={
+                            !!stateEdited && !!stateEdited.reporter
+                              ? this.extractFieldFromJsonExt(reporter, "phone")
+                              : EMPTY_STRING
+                          }
+                          onChange={(v) => this.updateAttribute("phone", v)}
+                          required={false}
+                          readOnly
+                        />
+                      </Grid>
+                      <Grid item xs={4} className={classes.item}>
+                        <TextInput
+                          module={MODULE_NAME}
+                          label="ticket.email"
+                          value={
+                            !!stateEdited && !!stateEdited.reporter
+                              ? this.extractFieldFromJsonExt(reporter, "email")
+                              : EMPTY_STRING
+                          }
+                          onChange={(v) => this.updateAttribute("email", v)}
+                          required={false}
+                          readOnly
+                        />
+                      </Grid>
+                    </>
+                  )}
+                  {stateEdited.reporterTypeName === "beneficiary" && (
+                    <PublishedComponent
+                      pubRef="socialProtection.BeneficiaryPicker"
+                      onChange={(v) => this.updateAttribute("reporter", v)}
+                      readOnly
+                      value={{
+                        individual: {
+                          firstName: stateEdited.reporterFirstName,
+                          lastName: stateEdited.reporterLastName,
+                          dob: stateEdited.reporterDob,
+                        },
+                      }}
+                      module={MODULE_NAME}
+                    />
+                  )}
+                  {stateEdited.reporterTypeName === "user" && (
+                    <Grid item xs={6} className={classes.item}>
+                      <PublishedComponent
+                        pubRef="admin.UserPicker"
+                        value={reporter}
+                        module="core"
+                        onChange={(v) => this.updateAttribute("reporter", v)}
+                        readOnly
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
             )}
           </Grid>
         </Grid>
@@ -496,7 +957,11 @@ class EditTicketPage extends Component {
         <Grid container>
           <Grid item xs={12}>
             <Paper className={classes.paper}>
-              <Grid container className={classes.tableTitle} alignItems="center">
+              <Grid
+                container
+                className={classes.tableTitle}
+                alignItems="center"
+              >
                 <Grid item xs={8} className={classes.tableTitle}>
                   <Typography>
                     <FormattedMessage
@@ -506,7 +971,7 @@ class EditTicketPage extends Component {
                     />
                   </Typography>
                 </Grid>
-                <Grid item xs={4} style={{ textAlign: 'right' }}>
+                <Grid item xs={4} style={{ textAlign: "right" }}>
                   <ReactToPrint content={() => this.componentRef}>
                     <PrintContextConsumer>
                       {({ handlePrint }) => (
@@ -520,16 +985,29 @@ class EditTicketPage extends Component {
                       )}
                     </PrintContextConsumer>
                   </ReactToPrint>
-                  <IconButton
-                    variant="contained"
-                    component="label"
-                    onClick={this.openEscalate}
-                    disabled={escalateDisabled}
-                    title="Escalader"
-                    style={{ marginLeft: 8 }}
+                  <Tooltip
+                    title={
+                      differentLevel
+                        ? "Vous ne pouvez pas escalader une plainte appartenant à un autre niveau"
+                        : "Escalader cette plainte"
+                    }
                   >
-                    <TrendingUpIcon />
-                  </IconButton>
+                    <span>
+                      <IconButton
+                        variant="contained"
+                        component="label"
+                        onClick={this.openEscalate}
+                        disabled={escalateDisabled}
+                        style={{
+                          marginLeft: 8,
+                          opacity: escalateDisabled ? 0.5 : 1,
+                          cursor: escalateDisabled ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        <TrendingUpIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                 </Grid>
               </Grid>
               <Divider />
@@ -538,7 +1016,7 @@ class EditTicketPage extends Component {
                   <TextInput
                     label="ticket.title"
                     value={stateEdited?.title}
-                    onChange={(v) => this.updateAttribute('title', v)}
+                    onChange={(v) => this.updateAttribute("title", v)}
                     required
                     readOnly={propsReadOnly}
                   />
@@ -549,7 +1027,7 @@ class EditTicketPage extends Component {
                     label="ticket.dateOfIncident"
                     value={stateEdited?.dateOfIncident}
                     required={false}
-                    onChange={(v) => this.updateAttribute('dateOfIncident', v)}
+                    onChange={(v) => this.updateAttribute("dateOfIncident", v)}
                     readOnly={propsReadOnly}
                   />
                 </Grid>
@@ -557,7 +1035,7 @@ class EditTicketPage extends Component {
                   <PublishedComponent
                     pubRef="grievanceSocialProtection.DropDownCategoryPicker"
                     value={stateEdited?.category}
-                    onChange={(v) => this.updateAttribute('category', v)}
+                    onChange={(v) => this.updateAttribute("category", v)}
                     required
                     readOnly={propsReadOnly}
                   />
@@ -567,7 +1045,7 @@ class EditTicketPage extends Component {
                     pubRef="grievanceSocialProtection.DropDownSubCategoryPicker"
                     category={stateEdited.category}
                     value={stateEdited.subCategory}
-                    onChange={(v) => this.updateAttribute('subCategory', v)}
+                    onChange={(v) => this.updateAttribute("subCategory", v)}
                     required
                     readOnly={propsReadOnly}
                   />
@@ -577,7 +1055,9 @@ class EditTicketPage extends Component {
                     pubRef="grievanceSocialProtection.DropDownSubCategoryLevel1Picker"
                     subCategory={stateEdited.subCategory}
                     value={stateEdited.subCategoryLevel1}
-                    onChange={(v) => this.updateAttribute('subCategoryLevel1', v)}
+                    onChange={(v) =>
+                      this.updateAttribute("subCategoryLevel1", v)
+                    }
                     readOnly={propsReadOnly}
                   />
                 </Grid>
@@ -585,7 +1065,7 @@ class EditTicketPage extends Component {
                   <PublishedComponent
                     pubRef="grievanceSocialProtection.FlagPicker"
                     value={stateEdited?.flags}
-                    onChange={(v) => this.updateAttribute('flags', v)}
+                    onChange={(v) => this.updateAttribute("flags", v)}
                     required
                     readOnly={propsReadOnly}
                   />
@@ -594,7 +1074,7 @@ class EditTicketPage extends Component {
                   <PublishedComponent
                     pubRef="grievanceSocialProtection.ChannelPicker"
                     value={stateEdited?.channel}
-                    onChange={(v) => this.updateAttribute('channel', v)}
+                    onChange={(v) => this.updateAttribute("channel", v)}
                     required
                     readOnly={propsReadOnly}
                   />
@@ -603,7 +1083,7 @@ class EditTicketPage extends Component {
                   <PublishedComponent
                     pubRef="grievanceSocialProtection.TicketPriorityPicker"
                     value={stateEdited?.priority}
-                    onChange={(v) => this.updateAttribute('priority', v)}
+                    onChange={(v) => this.updateAttribute("priority", v)}
                     required={false}
                     readOnly={propsReadOnly}
                   />
@@ -613,7 +1093,7 @@ class EditTicketPage extends Component {
                     pubRef="admin.UserPicker"
                     value={stateEdited?.attendingStaff}
                     module="core"
-                    onChange={(v) => this.updateAttribute('attendingStaff', v)}
+                    onChange={(v) => this.updateAttribute("attendingStaff", v)}
                     readOnly={propsReadOnly}
                   />
                 </Grid>
@@ -621,7 +1101,7 @@ class EditTicketPage extends Component {
                   <PublishedComponent
                     pubRef="grievanceSocialProtection.TicketStatusPicker"
                     value={stateEdited?.status}
-                    onChange={(v) => this.updateAttribute('status', v)}
+                    onChange={(v) => this.updateAttribute("status", v)}
                     required={false}
                     readOnly={propsReadOnly}
                   />
@@ -630,7 +1110,7 @@ class EditTicketPage extends Component {
                   <TextInput
                     label="ticket.description"
                     value={stateEdited?.description}
-                    onChange={(v) => this.updateAttribute('description', v)}
+                    onChange={(v) => this.updateAttribute("description", v)}
                     required={false}
                     readOnly={propsReadOnly}
                   />
@@ -641,16 +1121,18 @@ class EditTicketPage extends Component {
               <Divider style={{ marginTop: 10, marginBottom: 10 }} />
               <Grid item xs={12} className={classes.item}>
                 <Typography variant="subtitle1" style={{ marginBottom: 8 }}>
-                    Localisation
+                  Localisation
                 </Typography>
                 <PublishedComponent
-                    pubRef="location.DetailedLocation"
-                    withNull
-                    required
-                    readOnly={propsReadOnly}
-                    filterLabels={false}
-                    value={stateEdited?.location}
-                    onChange={(locations) => this.updateAttribute('location', locations)}
+                  pubRef="location.DetailedLocation"
+                  withNull
+                  required
+                  readOnly={propsReadOnly}
+                  filterLabels={false}
+                  value={stateEdited?.location}
+                  onChange={(locations) =>
+                    this.updateAttribute("location", locations)
+                  }
                 />
               </Grid>
 
@@ -663,7 +1145,12 @@ class EditTicketPage extends Component {
                   </Typography>
                 </Grid>
                 {filteredJsonFields.map((f, idx) => (
-                  <Grid item xs={6} className={classes.item} key={`jsonext-field-${idx}`}>
+                  <Grid
+                    item
+                    xs={6}
+                    className={classes.item}
+                    key={`jsonext-field-${idx}`}
+                  >
                     <TextField
                       fullWidth
                       label={f.label}
@@ -673,6 +1160,9 @@ class EditTicketPage extends Component {
                   </Grid>
                 ))}
               </Grid>
+              {/* ---------- Section Dossiers du remplaçant (cas décès) ---------- */}
+              {this.renderDeathDossiersSection()}
+
               {/* ------------------------------------------------------------ */}
               {/* ---------- Section Workflow / Historique (read-only) ---------- */}
               {this.renderWorkflowSection()}
@@ -700,7 +1190,7 @@ class EditTicketPage extends Component {
                   <TextInput
                     label="ticket.resolution"
                     value={stateEdited?.resolution}
-                    onChange={(v) => this.updateAttribute('resolution', v)}
+                    onChange={(v) => this.updateAttribute("resolution", v)}
                     required={false}
                     readOnly={propsReadOnly}
                   />
@@ -723,7 +1213,7 @@ class EditTicketPage extends Component {
         </Grid>
 
         {/* Impression */}
-        <div style={{ display: 'none' }}>
+        <div style={{ display: "none" }}>
           <TicketPrintTemplate
             ref={(el) => (this.componentRef = el)}
             ticket={stateEdited}
@@ -733,7 +1223,12 @@ class EditTicketPage extends Component {
         </div>
 
         {/* Dialog de confirmation d'escalade */}
-        <Dialog open={showEscalateDialog} onClose={this.closeEscalate} maxWidth="xs" fullWidth>
+        <Dialog
+          open={showEscalateDialog}
+          onClose={this.closeEscalate}
+          maxWidth="xs"
+          fullWidth
+        >
           <DialogTitle>Confirmer l’escalade</DialogTitle>
           <DialogContent>
             <Typography variant="body2">
@@ -741,9 +1236,16 @@ class EditTicketPage extends Component {
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={this.closeEscalate} disabled={escalating}>Annuler</Button>
-            <Button onClick={this.confirmEscalate} color="primary" variant="contained" disabled={escalating}>
-              {escalating ? 'En cours…' : 'Escalader'}
+            <Button onClick={this.closeEscalate} disabled={escalating}>
+              Annuler
+            </Button>
+            <Button
+              onClick={this.confirmEscalate}
+              color="primary"
+              variant="contained"
+              disabled={escalating}
+            >
+              {escalating ? "En cours…" : "Escalader"}
             </Button>
           </DialogActions>
         </Dialog>
@@ -762,17 +1264,29 @@ const mapStateToProps = (state, props) => ({
   grievanceConfig: state.grievanceSocialProtection.grievanceConfig,
   comments: state.grievanceSocialProtection.ticketComments,
   edited_id: state.grievanceSocialProtection.ticket?.id,
+  deathDossier: state.grievanceSocialProtection.deathDossier,
+  user: state.core?.user?.i_user || {},
 });
 
-const mapDispatchToProps = (dispatch) => bindActionCreators(
-  {
-    fetchTicket, updateTicket, createTicketComment, journalize, escalateTicket,
-  },
-  dispatch,
-);
+const mapDispatchToProps = (dispatch) =>
+  bindActionCreators(
+    {
+      fetchTicket,
+      updateTicket,
+      createTicketComment,
+      journalize,
+      escalateTicket,
+      fetchDeathDossier,
+      updateDeathDossier,
+    },
+    dispatch,
+  );
 
-export default withTheme(
-  withStyles(styles)(
-    connect(mapStateToProps, mapDispatchToProps)(EditTicketPage),
+export default withModulesManager(
+  withHistory(
+    connect(
+      mapStateToProps,
+      mapDispatchToProps,
+    )(injectIntl(withTheme(withStyles(styles)(EditTicketPage)))),
   ),
 );

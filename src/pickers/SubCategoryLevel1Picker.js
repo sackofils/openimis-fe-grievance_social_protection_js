@@ -28,8 +28,6 @@ function SubCategoryLevel1Picker(props) {
     { skip: true },
   );
 
-  console.log('props', props);
-
   return (
     <Autocomplete
       multiple={multiple}

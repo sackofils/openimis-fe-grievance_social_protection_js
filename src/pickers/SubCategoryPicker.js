@@ -27,7 +27,6 @@ function SubCategoryPicker(props) {
     { searchString, first: 20 },
     { skip: true },
   );
-    console.log('props', props);
   return (
     <Autocomplete
       multiple={multiple}
