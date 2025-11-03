@@ -367,7 +367,6 @@ class TicketSearcher extends Component {
     "",
     "tickets.code",
     "tickets.title",
-    "tickets.beneficary",
     "tickets.level",
     "tickets.priority",
     "tickets.status",
@@ -380,7 +379,6 @@ class TicketSearcher extends Component {
   sorts = () => [
     ["code", true],
     ["title", true],
-    ["reporter_id", true],
     ["level", true],
     ["priority", true],
     ["status", true],
@@ -402,50 +400,6 @@ class TicketSearcher extends Component {
       ),
       (t) => t.code,
       (t) => t.title,
-      (t) => {
-        const reporter =
-          typeof t.reporter === "object"
-            ? t.reporter
-            : JSON.parse(JSON.parse(t.reporter || "{}") || "{}");
-        let picker;
-        if (t.reporterTypeName === "individual") {
-          picker = (
-            <PublishedComponent
-              pubRef="individual.IndividualPicker"
-              readOnly
-              withNull
-              value={isEmptyObject(reporter) ? null : reporter}
-            />
-          );
-        } else if (t.reporterTypeName === "beneficiary") {
-          picker = (
-            <PublishedComponent
-              pubRef="socialProtection.BeneficiaryPicker"
-              readOnly
-              withNull
-              value={{
-                individual: {
-                  firstName: t.reporterFirstName,
-                  lastName: t.reporterLastName,
-                  dob: t.reporterDob,
-                },
-              }}
-            />
-          );
-        } else if (t.reporterTypeName === "user") {
-          picker = (
-            <PublishedComponent
-              pubRef="admin.UserPicker"
-              readOnly
-              withNull
-              value={isEmptyObject(reporter) ? null : reporter}
-            />
-          );
-        } else {
-          picker = formatMessage(intl, MODULE_NAME, "anonymousUser");
-        }
-        return picker;
-      },
       (t) => JSON.parse(t.jsonExt).workflow.assignee_role,
       (t) => {
         const translated = formatMessage(
