@@ -175,7 +175,7 @@ class TicketFilter extends Component {
                     {
                       id: "status",
                       value: v,
-                      filter: `status_Icontains: "${v}"`,
+                      filter: `status_Iexact: ${v}`,
                     },
                   ])
                 }
