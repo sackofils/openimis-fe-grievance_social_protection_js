@@ -123,7 +123,7 @@ class TicketsPage extends Component {
               open={Boolean(anchorEl)}
               onClose={this.handleMenuClose}
             >
-              <MenuItem onClick={this.handleNative}>
+              <MenuItem onClick={this.handleNative} disabled={true}>
                 <DescriptionIcon className={classes.menuItemIcon} />
                 {formatMessage(intl, MODULE_NAME, "ticket.menu.createNative")}
               </MenuItem>
