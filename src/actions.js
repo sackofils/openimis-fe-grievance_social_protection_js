@@ -508,6 +508,7 @@ export function fetchDeathDossier(ticketId) {
               filePvRemplacantUrl
               fileIdNouveauBeneficiaireUrl
               fileFicheEngagementUrl
+              codeBeneficiaire
               nomBeneficiaire
               prenomBeneficiaire
               sexeBeneficiaire

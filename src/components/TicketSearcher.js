@@ -18,6 +18,7 @@ import {
   TextField,
   Grid,
   CircularProgress,
+  Box, Chip
 } from "@material-ui/core";
 import { withStyles, withTheme } from "@material-ui/core/styles";
 import {
@@ -62,7 +63,129 @@ const styles = (theme) => ({
   },
 });
 
-const FULL_ACCESS_ROLES = ["CNGR", "DEVOPS", "SAUVEGARDES"];
+const FULL_ACCESS_ROLES = ["CNGR", "DEVOPS", "SAUVEGARDES", "SAUVEGARDE"];
+// Seuils SLA (personnalisables)
+const SLA_DAYS = 21;      // seuil principal
+const WARN_WINDOW = 3;    // fenêtre d’alerte (jours avant 21)
+
+function parseDate(d) {
+  if (!d) return null;
+  // Supporte "YYYY-MM-DD" ou ISO
+  const dt = new Date(d);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function diffDays(a, b) {
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  return Math.floor((a.getTime() - b.getTime()) / MS_PER_DAY);
+}
+
+/**
+ * Calcule les métriques SLA pour une ligne ticket.
+ * Basé sur jsonExt.submitted_at + SLA_DAYS
+ */
+function computeSla(ticket) {
+  const now = new Date();
+
+  // On récupère submitted_at depuis jsonExt
+  let submittedAt = null;
+  try {
+    const json =
+      typeof ticket.jsonExt === "string" ? JSON.parse(ticket.jsonExt) : ticket.jsonExt;
+    if (json?.submitted_at) submittedAt = new Date(json.submitted_at);
+  } catch (e) {
+    console.warn("Erreur parse jsonExt", e);
+  }
+
+  // fallback si pas de submitted_at → on prend dateCreated
+  if (!submittedAt || Number.isNaN(submittedAt.getTime())) {
+    submittedAt = new Date(ticket.dateCreated);
+  }
+
+  // Calcule la date d’échéance = submitted_at + SLA_DAYS
+  const dueAt = new Date(submittedAt.getTime() + SLA_DAYS * 24 * 60 * 60 * 1000);
+
+  // Calcule jours écoulés et restants
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  const daysOpen = Math.floor((now - submittedAt) / MS_PER_DAY);
+  const daysToDue = Math.floor((dueAt - now) / MS_PER_DAY);
+
+  // Détermination de l’état
+  let state = "ok";
+  let reason = "Dans les délais";
+
+  const isResolved = ["RESOLVED", "CLOSED"].includes(ticket?.status);
+
+  if (!isResolved) {
+    if (now > dueAt) {
+      state = "overdue";
+      reason = `Dépassement de ${Math.abs(daysToDue)} j`;
+    } else if (daysToDue <= WARN_WINDOW) {
+      state = "warning";
+      reason = `Échéance dans ${daysToDue} j`;
+    }
+  }
+
+  return { daysOpen, daysToDue, dueAt, state, reason, submittedAt };
+}
+
+/**
+ * Affiche une pastille de SLA avec le nombre de jours écoulés/restants
+ * et un tooltip avec l’échéance calculée localement.
+ */
+function SlaChip({ ticket, classes, intl }) {
+  const { daysOpen, daysToDue, dueAt, state, reason, submittedAt } = computeSla(ticket);
+
+  // Couleurs selon l’état
+  let color = "default";
+  let style = {};
+  if (state === "overdue") {
+    color = "secondary";
+    style = { background: "#ffdddd", color: "#b00020" };
+  } else if (state === "warning") {
+    color = "default";
+    style = { background: "#fff4e5", color: "#8a4b00" };
+  } else {
+    color = "primary";
+    style = { background: "#e8f5e9", color: "#1b5e20" };
+  }
+
+  // Libellé du chip
+  const label = (() => {
+    const parts = [];
+    if (typeof daysOpen === "number") parts.push(`${daysOpen} j`);
+    if (typeof daysToDue === "number")
+      parts.push(
+        daysToDue >= 0
+          ? `reste ${daysToDue} j`
+          : `retard ${Math.abs(daysToDue)} j`
+      );
+    if (!parts.length) parts.push("—");
+    return parts.join(" · ");
+  })();
+
+  // Tooltip détaillé (avec échéance calculée)
+  const tooltip = [
+    reason,
+    `Échéance calculée: ${dueAt.toISOString().split("T")[0]}`,
+    submittedAt ? `Soumis le: ${submittedAt.toISOString().split("T")[0]}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    <Tooltip title={tooltip} arrow>
+      <Chip
+        size="small"
+        label={label}
+        style={style}
+        className={classes.chip}
+        variant="default"
+        color={color}
+      />
+    </Tooltip>
+  );
+}
 
 class TicketSearcher extends Component {
   constructor(props) {
@@ -372,6 +495,7 @@ class TicketSearcher extends Component {
     "tickets.status",
     "tickets.category",
     "tickets.exportStatus",
+    "tickets.sla",
     this.isShowHistory() ? "tickets.version" : "",
     this.props.rights.includes(RIGHT_TICKET_EDIT) ? "" : null,
   ];
@@ -384,6 +508,7 @@ class TicketSearcher extends Component {
     ["status", true],
     ["category", true],
     ["is_exported", true],
+    ["sla", true],
     ["version", true],
   ];
 
@@ -484,6 +609,11 @@ class TicketSearcher extends Component {
             <FormattedMessage id="ticket.exported.no" defaultMessage="Non" />
           </span>
         ),
+      (t) => (
+        <Box display="flex" alignItems="center">
+          <SlaChip ticket={t} classes={this.props.classes} intl={this.props.intl} />
+        </Box>
+      ),
       (t) => (this.isShowHistory() ? t?.version : null),
     ];
     if (this.props.rights.includes(RIGHT_TICKET_EDIT)) {

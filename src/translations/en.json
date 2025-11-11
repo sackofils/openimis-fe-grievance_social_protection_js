@@ -24,6 +24,7 @@
     "tickets.status" : "Status",
     "tickets.code" : "Code", 
     "tickets.title" : "Title", 
+    "tickets.sla" : "SLA",
     " Ticket.ComplainantInformation" : "REPORTER INFORMATION",
     "ticket.name" : "Name",
     "ticket.phone" : "Phone",

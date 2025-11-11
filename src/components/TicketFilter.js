@@ -170,14 +170,16 @@ class TicketFilter extends Component {
                 label="ticket.ticketStatus"
                 withNull
                 value={this._filterValue("status")}
-                onChange={(v) =>
-                  this.debouncedOnChangeFilter([
-                    {
-                      id: "status",
-                      value: v,
-                      filter: `status_Iexact: ${v}`,
-                    },
-                  ])
+                onChange={(v) => {
+                    v = (!v || v === '') ? null : v;
+                    this.debouncedOnChangeFilter([
+                        {
+                          id: "status",
+                          value: v,
+                          filter: `status_Iexact: ${v}`,
+                        },
+                      ])
+                    }
                 }
               />
             </Grid>
