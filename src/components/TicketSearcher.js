@@ -198,6 +198,7 @@ class TicketSearcher extends Component {
       showHistoryFilter: false,
       displayVersion: false,
       selectedIds: [],
+      selectAllMode: false,
       groupDialogOpen: false,
       groupDialogType: null,
       message: "",
@@ -258,13 +259,19 @@ class TicketSearcher extends Component {
 
   toggleSelectAllButton = () => {
     const { tickets = [] } = this.props;
-    const { selectedIds } = this.state;
+    const { selectedIds, selectAllMode } = this.state;
     if (selectedIds.length < tickets.length) {
       // Sélectionner tout
-      this.setState({ selectedIds: tickets.map((t) => t.id) });
+      this.setState({
+        selectedIds: tickets.map((t) => t.id),
+        selectAllMode: !selectAllMode
+      });
     } else {
       // Désélectionner tout
-      this.setState({ selectedIds: [] });
+      this.setState({
+        selectedIds: [],
+        selectAllMode: !selectAllMode,
+      });
     }
   };
 
@@ -335,62 +342,87 @@ class TicketSearcher extends Component {
     });
   };
 
-  handleExport = async () => {
-    const { selectedIds } = this.state;
-    if (!selectedIds || !selectedIds.length) {
-      coreAlert(
-        "Veuillez sélectionner au moins une plainte à exporter.",
-        "warning",
+handleExport = async (arg = false) => {
+  const dryRun = typeof arg === "boolean" ? arg : false;
+  const { selectedIds, selectAllMode } = this.state;
+
+  if (!selectAllMode && (!selectedIds || !selectedIds.length)) {
+    coreAlert("Veuillez sélectionner au moins une plainte à exporter.", "warning");
+    return;
+  }
+
+  this.setState({ exporting: true });
+
+  try {
+    let data;
+
+    // MODE GLOBAL
+    if (selectAllMode) {
+      // Utiliser la vraie source des filtres
+      const cleanFilters = (this.lastParameter || [])
+        .filter((p) => typeof p === "string")   // sécurité
+        .filter((p) => !p.startsWith("first"))  // on enlève pagination
+        .filter((p) => !p.startsWith("after"))
+        .filter((p) => !p.startsWith("before"))
+        .filter((p) => !p.startsWith("orderBy"));
+
+      console.log("Filters sent to backend:", cleanFilters);
+
+      data = await exportSelectedTicketsREST(
+        [],
+        dryRun,
+        true,
+        cleanFilters
       );
+    }
+
+    // MODE SELECTION MANUELLE
+    else {
+      data = await exportSelectedTicketsREST(
+        selectedIds,
+        dryRun,
+        false,
+        []
+      );
+    }
+
+    if (dryRun) {
+      coreAlert(`Simulation OK — ${data.count} ticket(s) concernés`, "info");
       return;
     }
 
-    // Active le loader global
-    this.setState({ exporting: true });
-    try {
-      const data = await exportSelectedTicketsREST(selectedIds, false);
-      const urlPart = `/grievance_social_protection/grievance/download/export/`;
-      if (data.success) {
-        if (data.files.length > 0) {
-          data.files.forEach((f) => {
-            const url = f.startsWith("http")
-              ? f
-              : `${window.location.origin}${baseApiUrl}${urlPart}${f}/`;
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = url.split("/").pop();
-            link.target = "_blank";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          });
+    if (data.success && data.files?.length) {
+      const urlPart =
+        "/grievance_social_protection/grievance/download/export/";
 
-          // this.setState({ exportSuccess: true });
-          coreAlert("Export(s) généré(s) avec succès !", "success");
-        } else {
-          coreAlert(
-            "Aucun fichier généré. Vérifiez les tickets sélectionnés.",
-            "info",
-          );
-        }
-        coreAlert(data.message, "success");
-        console.log("Fichiers:", data.files);
-        // Recharge les données pour refléter les champs is_exported
-        if (this.searcher && this.searcher.state) {
-          this.fetch(this.lastParameter, this.searcher.state);
-        } else {
-          this.props.fetchTicketSummaries(
-            this.props.modulesManager,
-            this.lastParameter,
-          );
-        }
-      }
-    } catch (e) {
-      coreAlert(e.message, "error");
-    } finally {
-      this.setState({ exporting: false });
+      data.files.forEach((f) => {
+        const url = f.startsWith("http")
+          ? f
+          : `${window.location.origin}${baseApiUrl}${urlPart}${f}/`;
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = url.split("/").pop();
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+
+      coreAlert(`${data.count} ticket(s) exporté(s)`, "success");
+
+      this.setState({
+        selectedIds: [],
+        selectAllMode: false,
+      });
     }
-  };
+  } catch (e) {
+    console.error("Erreur export :", e);
+    coreAlert(e.message || "Erreur pendant l’export", "error");
+  } finally {
+    this.setState({ exporting: false });
+  }
+};
 
   onEscalate = () => {
     if (!this.canEscalateSelected()) {

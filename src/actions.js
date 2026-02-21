@@ -735,23 +735,24 @@ export function exportSelectedTicketsBulk(
   );
 }
 
-export async function exportSelectedTicketsREST(ticketIds, dryRun = false) {
+export async function exportSelectedTicketsREST(
+  ticketIds = [],
+  dryRun = false,
+  selectAll = false,
+  filters = []
+) {
   const url = `${window.location.origin}${baseApiUrl}/grievance_social_protection/grievance/export-selected-tickets/`;
+
   const payload = {
-    ticket_ids: ticketIds.map((t) => decodeId(t)),
-    dry_run: dryRun,
+    ticket_ids: selectAll ? [] : ticketIds.map((t) => decodeId(t)),
+    dry_run: !!dryRun,
+    select_all: !!selectAll,
+    filters: selectAll ? (filters || []).filter((x) => typeof x === "string") : [],
   };
 
-  console.log(
-    'localStorage.getItem("token")',
-    localStorage.getItem("csrfToken"),
-  );
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      // Authorization: `Bearer ${localStorage.getItem("csrfToken")}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
