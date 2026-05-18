@@ -65,8 +65,9 @@ const styles = (theme) => ({
 
 const FULL_ACCESS_ROLES = ["CNGR", "DEVOPS", "SAUVEGARDES", "SAUVEGARDE"];
 // Seuils SLA (personnalisables)
-const SLA_DAYS = 21;      // seuil principal
-const WARN_WINDOW = 3;    // fenêtre d’alerte (jours avant 21)
+const DEFAULT_SLA_DAYS = 21;
+const SPECIAL_SLA_DAYS = 60;
+const WARN_WINDOW = 3;
 
 function parseDate(d) {
   if (!d) return null;
@@ -80,12 +81,27 @@ function diffDays(a, b) {
   return Math.floor((a.getTime() - b.getTime()) / MS_PER_DAY);
 }
 
+function getSlaConfig(ticket) {
+  const category = String(ticket?.category || "").trim().toLowerCase();
+
+  if (category.includes("cas sensibles")) {
+    return { slaDays: null, label: "Sans limite" };
+  }
+
+  if (category.includes("speciaux") || category.includes("spéciaux")) {
+    return { slaDays: SPECIAL_SLA_DAYS, label: `${SPECIAL_SLA_DAYS} j` };
+  }
+
+  return { slaDays: DEFAULT_SLA_DAYS, label: `${DEFAULT_SLA_DAYS} j` };
+}
+
 /**
  * Calcule les métriques SLA pour une ligne ticket.
- * Basé sur jsonExt.submitted_at + SLA_DAYS
+ * Basé sur jsonExt.submitted_at + SLA selon la catégorie.
  */
 function computeSla(ticket) {
   const now = new Date();
+  const { slaDays, label: slaLabel } = getSlaConfig(ticket);
 
   // On récupère submitted_at depuis jsonExt
   let submittedAt = null;
@@ -102,21 +118,23 @@ function computeSla(ticket) {
     submittedAt = new Date(ticket.dateCreated);
   }
 
-  // Calcule la date d’échéance = submitted_at + SLA_DAYS
-  const dueAt = new Date(submittedAt.getTime() + SLA_DAYS * 24 * 60 * 60 * 1000);
-
   // Calcule jours écoulés et restants
   const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const daysOpen = Math.floor((now - submittedAt) / MS_PER_DAY);
-  const daysToDue = Math.floor((dueAt - now) / MS_PER_DAY);
+  const dueAt =
+    typeof slaDays === "number"
+      ? new Date(submittedAt.getTime() + slaDays * MS_PER_DAY)
+      : null;
+  const daysToDue =
+    dueAt ? Math.floor((dueAt.getTime() - now.getTime()) / MS_PER_DAY) : null;
 
   // Détermination de l’état
   let state = "ok";
-  let reason = "Dans les délais";
+  let reason = typeof slaDays === "number" ? "Dans les délais" : "Pas de limite SLA";
 
   const isResolved = ["RESOLVED", "CLOSED"].includes(ticket?.status);
 
-  if (!isResolved) {
+  if (!isResolved && dueAt) {
     if (now > dueAt) {
       state = "overdue";
       reason = `Dépassement de ${Math.abs(daysToDue)} j`;
@@ -125,8 +143,16 @@ function computeSla(ticket) {
       reason = `Échéance dans ${daysToDue} j`;
     }
   }
-
-  return { daysOpen, daysToDue, dueAt, state, reason, submittedAt };
+  return {
+    daysOpen,
+    daysToDue,
+    dueAt,
+    state,
+    reason,
+    submittedAt,
+    slaDays,
+    slaLabel,
+  };
 }
 
 /**
@@ -134,7 +160,15 @@ function computeSla(ticket) {
  * et un tooltip avec l’échéance calculée localement.
  */
 function SlaChip({ ticket, classes, intl }) {
-  const { daysOpen, daysToDue, dueAt, state, reason, submittedAt } = computeSla(ticket);
+  const {
+    daysOpen,
+    dueAt,
+    state,
+    reason,
+    submittedAt,
+    slaDays,
+    slaLabel,
+  } = computeSla(ticket);
 
   // Couleurs selon l’état
   let color = "default";
@@ -153,13 +187,14 @@ function SlaChip({ ticket, classes, intl }) {
   // Libellé du chip
   const label = (() => {
     const parts = [];
-    if (typeof daysOpen === "number") parts.push(`${daysOpen} j`);
-    if (typeof daysToDue === "number")
-      parts.push(
-        daysToDue >= 0
-          ? `reste ${daysToDue} j`
-          : `retard ${Math.abs(daysToDue)} j`
-      );
+    if (typeof daysOpen === "number") {
+      if (slaDays === null) parts.push(`${slaLabel}`);
+      else {
+        const displayedDays =
+        typeof slaDays === "number" ? Math.min(daysOpen, slaDays) : daysOpen;
+        parts.push(`${displayedDays} j`);
+      }
+    }
     if (!parts.length) parts.push("—");
     return parts.join(" · ");
   })();
@@ -167,7 +202,8 @@ function SlaChip({ ticket, classes, intl }) {
   // Tooltip détaillé (avec échéance calculée)
   const tooltip = [
     reason,
-    `Échéance calculée: ${dueAt.toISOString().split("T")[0]}`,
+    `SLA: ${slaLabel}`,
+    dueAt ? `Échéance calculée: ${dueAt.toISOString().split("T")[0]}` : null,
     submittedAt ? `Soumis le: ${submittedAt.toISOString().split("T")[0]}` : null,
   ]
     .filter(Boolean)

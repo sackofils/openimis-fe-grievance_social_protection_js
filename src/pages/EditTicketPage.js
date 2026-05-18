@@ -765,12 +765,14 @@ class EditTicketPage extends Component {
                             id="workflow.toRole"
                           />
                         </TableCell>
+                        {/**
                         <TableCell align="right">
                           <FormattedMessage
                             module={MODULE_NAME}
                             id="workflow.slaDays"
                           />
                         </TableCell>
+                        */}
                         <TableCell align="right">
                           <FormattedMessage
                             module={MODULE_NAME}
@@ -786,9 +788,7 @@ class EditTicketPage extends Component {
                           <TableCell>{h.by ?? ""}</TableCell>
                           <TableCell>{h.source ?? ""}</TableCell>
                           <TableCell>{h.to_role ?? ""}</TableCell>
-                          <TableCell align="right">
-                            {h.sla_days ?? ""}
-                          </TableCell>
+                          {/**<TableCell align="right">{h.sla_days ?? ""}</TableCell>*/}
                           <TableCell align="right">
                             {h.to_user_fullname || ""}
                           </TableCell>
